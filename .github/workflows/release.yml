@@ -183,8 +183,14 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      # The Linux artifact keeps Tauri's deb/ and appimage/ folders; the release takes files.
+      - name: Collect the installers
+        run: |
+          mkdir dist
+          find artifacts -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' \) -exec mv -t dist {} +
+          ls -l dist
       - name: Generate checksums
-        run: node scripts/checksums.mjs artifacts
+        run: node scripts/checksums.mjs dist
       - name: Draft GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -196,7 +202,7 @@ jobs:
           if [[ "$TAG" == *-* ]]; then FLAGS+=(--prerelease); fi
           if [[ -n "$PREVIOUS" ]]; then FLAGS+=(--notes-start-tag "$PREVIOUS"); fi
           gh release create "$TAG" --verify-tag --title "CreditBar $TAG" "${FLAGS[@]}"
-          gh release upload "$TAG" --clobber artifacts/*
+          gh release upload "$TAG" --clobber dist/*
 
   # Publishes the draft once it holds every artifact and the checksums.
   publish-release:
