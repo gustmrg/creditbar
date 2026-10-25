@@ -33,7 +33,7 @@ jobs:
               target/release/bundle/appimage/*.AppImage
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check the tag matches the app version
         if: startsWith(github.ref, 'refs/tags/')
@@ -63,7 +63,7 @@ jobs:
         working-directory: crates/app
         run: npx --yes @tauri-apps/cli@2 build ${{ matrix.args }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: creditbar-${{ matrix.platform }}
           path: ${{ matrix.bundles }}
@@ -75,7 +75,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
