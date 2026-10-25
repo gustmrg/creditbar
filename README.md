@@ -29,12 +29,21 @@ crates/app/             # creditbar: Tauri 2 tray app
 ui/                     # panel: plain HTML/CSS/JS, no bundler
 ```
 
+## The panel and the tray
+
+- The panel lists every provider's balance; a provider without a key only offers **Add API key**.
+- **DeepSeek pricing** (period, countdown, monthly calendar, weekly grid) is a section of its
+  own, toggled from the tray menu (**Show DeepSeek Peak Hours**, on by default).
+- The tray icon is a credit bar. It turns amber when a provider with a saved key failed to
+  refresh or reports that its account can't make API calls.
+
 ## Platform notes
 
 - **Linux / GNOME**: GNOME has no tray of its own. Enable the AppIndicator extension
   (`gnome-extensions enable ubuntu-appindicators@ubuntu.com`, package
   `gnome-shell-extension-appindicator`). Linux trays only open the menu, so the panel is
-  reached through **Open Panel**; the menu itself shows the period and the next switch.
+  reached through **Open Panel**; with DeepSeek pricing on, the menu itself shows the period and
+  the next switch.
 - **NVIDIA**: the app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` on Linux, otherwise WebKitGTK
   renders a blank window.
 - **macOS**: no Dock icon (accessory activation policy); the countdown can sit next to the icon.

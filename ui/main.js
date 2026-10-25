@@ -56,12 +56,17 @@ async function reload() {
   try {
     const state = await invoke("get_state");
     snapshot = state.snapshot;
+    applySettings(state.settings);
     renderSnapshot();
     renderBalances(state.balances);
     await loadCalendar();
   } finally {
     reloading = false;
   }
+}
+
+function applySettings(settings) {
+  $("deepseek").hidden = !settings.showsDeepseekPricing;
 }
 
 function renderSnapshot() {
@@ -330,6 +335,7 @@ listen("snapshot", (e) => {
   loadCalendar();
 });
 listen("balances", (e) => renderBalances(e.payload));
+listen("settings", (e) => applySettings(e.payload));
 listen("panel-shown", () => {
   // Opening the panel goes back to today.
   calendarCursor = null;

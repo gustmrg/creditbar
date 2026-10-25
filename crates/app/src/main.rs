@@ -9,9 +9,9 @@ mod settings;
 mod tray;
 
 use chrono::{NaiveDate, Utc};
-use serde::Serialize;
 use creditbar_core::pricing::{self, CalendarDay};
 use creditbar_core::PricingSnapshot;
+use serde::Serialize;
 use tauri::{AppHandle, Manager, RunEvent, State};
 
 use crate::balance::{BalanceView, Balances};
@@ -23,13 +23,19 @@ use crate::holidays::Holidays;
 struct PanelState {
     snapshot: PricingSnapshot,
     balances: Vec<BalanceView>,
+    settings: settings::Settings,
 }
 
 #[tauri::command]
-fn get_state(holidays: State<'_, Holidays>, balances: State<'_, Balances>) -> PanelState {
+fn get_state(
+    holidays: State<'_, Holidays>,
+    balances: State<'_, Balances>,
+    tray: State<'_, tray::Tray>,
+) -> PanelState {
     PanelState {
         snapshot: holidays.snapshot_now(),
         balances: balances.views(),
+        settings: tray.settings(),
     }
 }
 

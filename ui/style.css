@@ -71,9 +71,27 @@ p { margin: 0; }
 
 .hero-text { flex: 1; min-width: 0; }
 
+.deepseek {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .whale {
-  width: 46px;
-  height: 46px;
+  width: 22px;
+  height: 22px;
   flex: none;
   background: var(--whale);
   -webkit-mask: url(whale.svg) center / contain no-repeat;

@@ -9,11 +9,23 @@ use tauri::{AppHandle, Manager};
 
 const FILE: &str = "settings.json";
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
-    /// `HH:MM:SS` next to the tray icon (macOS and Linux; Windows trays have no title).
+    /// DeepSeek's peak / off-peak section in the panel and the tray menu.
+    pub shows_deepseek_pricing: bool,
+    /// `HH:MM:SS` to the next DeepSeek switch next to the tray icon (macOS and Linux; Windows
+    /// trays have no title). Only while the pricing section is shown.
     pub shows_countdown: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            shows_deepseek_pricing: true,
+            shows_countdown: false,
+        }
+    }
 }
 
 fn path(app: &AppHandle) -> Option<PathBuf> {

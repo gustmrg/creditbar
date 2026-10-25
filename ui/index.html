@@ -9,45 +9,53 @@
 </head>
 <body>
   <main>
-    <section class="hero" id="hero">
-      <div class="whale" aria-hidden="true"></div>
-      <div class="hero-text">
-        <h1 id="period">…</h1>
-        <p id="price"></p>
-      </div>
-      <span class="badge" id="multiplier"></span>
-    </section>
-
-    <section class="block">
-      <div class="label" data-i18n="panel.nextSwitch"></div>
-      <div class="countdown" id="countdown">--:--:--</div>
-      <div id="next" class="muted"></div>
-      <div class="progress"><div id="progress"></div></div>
-      <p id="day" class="muted small"></p>
-    </section>
-
-    <section class="block">
-      <div class="tabs">
-        <div class="segmented" role="tablist">
-          <button role="tab" data-view="month" aria-selected="true" data-i18n="calendar.month"></button>
-          <button role="tab" data-view="week" aria-selected="false" data-i18n="calendar.week"></button>
-        </div>
-        <button id="cal-prev" class="nav" data-i18n-label="calendar.previous">‹</button>
-        <span id="cal-title" class="cal-title"></span>
-        <button id="cal-next" class="nav" data-i18n-label="calendar.next">›</button>
-      </div>
-      <div id="calendar"></div>
-      <div class="legend muted small">
-        <span><i class="swatch peak"></i><span data-i18n="legend.peak"></span></span>
-        <span><i class="swatch off"></i><span id="legend-off"></span></span>
-        <span id="legend-holiday"><i class="dot"></i><span data-i18n="legend.holiday"></span></span>
-      </div>
-    </section>
-
     <section class="block card" id="balances"></section>
 
+    <!-- DeepSeek's time-of-day pricing; hidden from the tray menu when not wanted. -->
+    <section class="deepseek" id="deepseek">
+      <div class="section-head">
+        <div class="whale" aria-hidden="true"></div>
+        <span class="label" data-i18n="panel.deepseekPricing"></span>
+      </div>
+
+      <div class="hero">
+        <div class="hero-text">
+          <h1 id="period">…</h1>
+          <p id="price"></p>
+        </div>
+        <span class="badge" id="multiplier"></span>
+      </div>
+
+      <div class="block">
+        <div class="label" data-i18n="panel.nextSwitch"></div>
+        <div class="countdown" id="countdown">--:--:--</div>
+        <div id="next" class="muted"></div>
+        <div class="progress"><div id="progress"></div></div>
+        <p id="day" class="muted small"></p>
+      </div>
+
+      <div class="block">
+        <div class="tabs">
+          <div class="segmented" role="tablist">
+            <button role="tab" data-view="month" aria-selected="true" data-i18n="calendar.month"></button>
+            <button role="tab" data-view="week" aria-selected="false" data-i18n="calendar.week"></button>
+          </div>
+          <button id="cal-prev" class="nav" data-i18n-label="calendar.previous">‹</button>
+          <span id="cal-title" class="cal-title"></span>
+          <button id="cal-next" class="nav" data-i18n-label="calendar.next">›</button>
+        </div>
+        <div id="calendar"></div>
+        <div class="legend muted small">
+          <span><i class="swatch peak"></i><span data-i18n="legend.peak"></span></span>
+          <span><i class="swatch off"></i><span id="legend-off"></span></span>
+          <span id="legend-holiday"><i class="dot"></i><span data-i18n="legend.holiday"></span></span>
+        </div>
+        <p class="muted small" data-i18n="panel.beijingNote"></p>
+      </div>
+    </section>
+
     <footer>
-      <span class="muted small" data-i18n="panel.beijingNote"></span>
+      <span class="brand">CreditBar</span>
       <button id="quit" class="link" data-i18n="panel.quit"></button>
     </footer>
   </main>

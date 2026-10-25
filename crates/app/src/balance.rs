@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use serde::Serialize;
 use creditbar_core::providers::{self, Balance, BalanceError, BalanceProvider};
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::i18n::{t, tf};
@@ -69,6 +69,15 @@ impl Balances {
             slots: Mutex::new(slots),
             http: reqwest::Client::new(),
         }
+    }
+
+    /// A saved key whose last refresh failed, or an account that can't make API calls.
+    pub fn needs_attention(&self) -> bool {
+        self.slots.lock().unwrap().iter().any(|s| {
+            s.view.has_key
+                && (s.view.error.is_some()
+                    || s.view.balance.as_ref().is_some_and(|b| !b.is_available))
+        })
     }
 
     pub fn views(&self) -> Vec<BalanceView> {

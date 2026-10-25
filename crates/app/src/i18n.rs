@@ -4,8 +4,8 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use serde::Serialize;
 use creditbar_core::holidays::HOLIDAY_NAME_KEYS;
+use serde::Serialize;
 
 const ENGLISH: &str = "en-US";
 
