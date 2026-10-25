@@ -62,24 +62,16 @@ DEEPSEEK_API_KEY=sk-... cargo run -p creditbar-core --example status
 
 ### Releases (GitHub Actions)
 
-`.github/workflows/release.yml` builds the macOS and Linux installers when a version tag is
-pushed, and attaches them to a **draft** release to review and publish:
-
-```bash
-# bump "version" in crates/app/tauri.conf.json first; the tag must match it
-git tag v0.1.0 && git push origin v0.1.0
-```
-
-| Platform | Runner | Output |
-| --- | --- | --- |
-| macOS | `macos-latest` | universal `.dmg` (Apple Silicon + Intel) |
-| Linux | `ubuntu-22.04` | `.deb` and AppImage |
+Releases are cut from GitHub Actions → **Release** → Run workflow, with **version** set to
+`patch`, `minor`, `major`, `beta` or an exact version. The workflow bumps the version, runs the
+checks, builds a universal macOS `.dmg` and a Linux `.deb` and AppImage, commits
+`chore(release): prepare vX.Y.Z`, tags it and publishes the release with `SHA256SUMS.txt`.
+See the [release runbook](docs/release-runbook.md).
 
 `ci.yml` runs `cargo fmt --check`, `clippy -D warnings` and the tests on Linux and macOS for
 every push to `main` and every pull request.
 
-The builds are unsigned. On macOS, an unsigned app downloaded from the internet is reported as
-"damaged"; clear the quarantine flag once with
+The builds are unsigned. On macOS, clear the quarantine flag once with
 `xattr -dr com.apple.quarantine /Applications/CreditBar.app`.
 
 ### Local builds
