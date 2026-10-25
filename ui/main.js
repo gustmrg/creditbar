@@ -328,5 +328,10 @@ listen("panel-shown", () => {
 $("quit").addEventListener("click", () => invoke("quit"));
 document.addEventListener("keydown", (e) => e.key === "Escape" && invoke("hide_panel"));
 
+// The window takes the height of its content; the backend caps it at the screen height.
+new ResizeObserver(([entry]) => {
+  invoke("resize_panel", { height: entry.target.getBoundingClientRect().height });
+}).observe(document.querySelector("main"));
+
 setInterval(tick, 1000);
 reload();

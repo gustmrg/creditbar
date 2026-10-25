@@ -4,12 +4,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Rect, WebviewWindow, WindowEvent};
+use tauri::{
+    AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Rect, WebviewWindow,
+    WindowEvent,
+};
 
 use crate::balance;
 
 const LABEL: &str = "panel";
 const MARGIN: f64 = 8.0;
+/// Room kept free above and below the panel (menu bar, taskbar), in logical pixels.
+const SCREEN_GAP: f64 = 48.0;
+const MIN_HEIGHT: f64 = 200.0;
 
 #[derive(Default)]
 pub struct PanelState {
@@ -17,6 +23,8 @@ pub struct PanelState {
     /// Whether the panel got focus since it was shown. Window managers may refuse focus
     /// (GNOME's focus-stealing prevention) and still report a blur; only a real blur hides.
     focused: AtomicBool,
+    /// The tray icon the panel was last opened from, to keep it anchored while it resizes.
+    anchor: Mutex<Option<Rect>>,
 }
 
 fn window(app: &AppHandle) -> Option<WebviewWindow> {
@@ -25,6 +33,11 @@ fn window(app: &AppHandle) -> Option<WebviewWindow> {
 
 pub fn install(app: &AppHandle) {
     let Some(panel) = window(app) else { return };
+    // The panel is resizable in tauri.conf.json because a non-resizable GTK window never gets
+    // smaller than its initial size, which would stop it from shrinking to its content. On
+    // Linux, with no decorations, there are no resize handles anyway; elsewhere, lock it.
+    #[cfg(not(target_os = "linux"))]
+    let _ = panel.set_resizable(false);
     let handle = app.clone();
     panel.on_window_event(move |event| match event {
         WindowEvent::Focused(true) => handle
@@ -78,7 +91,12 @@ pub fn toggle(app: &AppHandle, anchor: Rect) {
 /// "Open panel" menu item passes `None` and the panel goes to the top-right corner.
 pub fn show(app: &AppHandle, anchor: Option<Rect>) {
     let Some(panel) = window(app) else { return };
-    if let Some(position) = position(&panel, anchor) {
+    *app.state::<PanelState>().anchor.lock().unwrap() = anchor;
+    if let Some(position) = panel
+        .outer_size()
+        .ok()
+        .and_then(|size| position(&panel, anchor, size))
+    {
         let _ = panel.set_position(position);
     }
     app.state::<PanelState>()
@@ -90,9 +108,43 @@ pub fn show(app: &AppHandle, anchor: Option<Rect>) {
     balance::refresh_if_stale(app);
 }
 
-fn position(panel: &WebviewWindow, anchor: Option<Rect>) -> Option<PhysicalPosition<f64>> {
+/// Fits the panel to its content (logical pixels), up to the screen height; beyond that the
+/// page scrolls. A panel opened above a bottom taskbar moves up so it stays attached.
+pub fn resize(app: &AppHandle, content_height: f64) {
+    let Some(panel) = window(app) else { return };
+    let (Ok(scale), Ok(current)) = (panel.scale_factor(), panel.inner_size()) else {
+        return;
+    };
+    let max = panel
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| panel.primary_monitor().ok().flatten())
+        .map_or(f64::MAX, |m| {
+            f64::from(m.size().height) / scale - 2.0 * SCREEN_GAP
+        });
+    let height = content_height.ceil().clamp(MIN_HEIGHT, max.max(MIN_HEIGHT));
+    let width = f64::from(current.width) / scale;
+    if (f64::from(current.height) / scale - height).abs() < 1.0 {
+        return;
+    }
+    let _ = panel.set_size(LogicalSize::new(width, height));
+
+    if panel.is_visible().unwrap_or(false) {
+        let anchor = *app.state::<PanelState>().anchor.lock().unwrap();
+        let size = PhysicalSize::new(current.width, (height * scale).round() as u32);
+        if let Some(position) = position(&panel, anchor, size) {
+            let _ = panel.set_position(position);
+        }
+    }
+}
+
+fn position(
+    panel: &WebviewWindow,
+    anchor: Option<Rect>,
+    size: PhysicalSize<u32>,
+) -> Option<PhysicalPosition<f64>> {
     let scale = panel.scale_factor().ok()?;
-    let size = panel.outer_size().ok()?;
     let (width, height) = (f64::from(size.width), f64::from(size.height));
 
     let Some(anchor) = anchor else {

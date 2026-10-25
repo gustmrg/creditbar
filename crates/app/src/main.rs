@@ -65,6 +65,12 @@ fn hide_panel(app: AppHandle) {
     panel::hide(&app);
 }
 
+/// The panel reports its content height whenever it changes.
+#[tauri::command]
+fn resize_panel(app: AppHandle, height: f64) {
+    panel::resize(&app, height);
+}
+
 #[tauri::command]
 fn quit(app: AppHandle) {
     app.exit(0);
@@ -91,6 +97,7 @@ fn main() {
             save_api_key,
             remove_api_key,
             hide_panel,
+            resize_panel,
             quit
         ])
         .setup(|app| {
