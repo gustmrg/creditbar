@@ -60,6 +60,30 @@ DEEPSEEK_API_KEY=sk-... cargo run -p creditbar-core --example status
 
 ## Installers
 
+### Releases (GitHub Actions)
+
+`.github/workflows/release.yml` builds the macOS and Linux installers when a version tag is
+pushed, and attaches them to a **draft** release to review and publish:
+
+```bash
+# bump "version" in crates/app/tauri.conf.json first; the tag must match it
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+| Platform | Runner | Output |
+| --- | --- | --- |
+| macOS | `macos-latest` | universal `.dmg` (Apple Silicon + Intel) |
+| Linux | `ubuntu-22.04` | `.deb` and AppImage |
+
+`ci.yml` runs `cargo fmt --check`, `clippy -D warnings` and the tests on Linux and macOS for
+every push to `main` and every pull request.
+
+The builds are unsigned. On macOS, an unsigned app downloaded from the internet is reported as
+"damaged"; clear the quarantine flag once with
+`xattr -dr com.apple.quarantine /Applications/CreditBar.app`.
+
+### Local builds
+
 ```bash
 cargo install tauri-cli --version "^2" --locked   # once
 cd crates/app
