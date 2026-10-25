@@ -14,9 +14,10 @@ use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Wry};
+use tauri_plugin_autostart::ManagerExt;
 
 use crate::holidays::Holidays;
-use crate::panel;
+use crate::{panel, settings};
 
 pub struct Tray {
     icon: TrayIcon,
@@ -43,6 +44,7 @@ fn icon(period: PricePeriod) -> Image<'static> {
 
 impl Tray {
     pub fn build(app: &AppHandle) -> tauri::Result<Self> {
+        let settings = settings::load(app);
         let status_item = MenuItem::with_id(app, "status", "…", false, None::<&str>)?;
         let next_item = MenuItem::with_id(app, "next", "…", false, None::<&str>)?;
         let open = MenuItem::with_id(app, "open", "Open Panel", true, None::<&str>)?;
@@ -51,7 +53,15 @@ impl Tray {
             "countdown",
             "Show Countdown in Tray",
             true,
-            false,
+            settings.shows_countdown,
+            None::<&str>,
+        )?;
+        let autostart = CheckMenuItem::with_id(
+            app,
+            "autostart",
+            "Launch at Login",
+            true,
+            app.autolaunch().is_enabled().unwrap_or(false),
             None::<&str>,
         )?;
         let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -63,6 +73,7 @@ impl Tray {
                 &PredefinedMenuItem::separator(app)?,
                 &open,
                 &countdown,
+                &autostart,
                 &PredefinedMenuItem::separator(app)?,
                 &quit,
             ],
@@ -76,10 +87,25 @@ impl Tray {
             .on_menu_event(move |app, event| match event.id().as_ref() {
                 "open" => panel::show(app, None),
                 "countdown" => {
-                    let tray = app.state::<Tray>();
-                    tray.shows_countdown
-                        .store(countdown.is_checked().unwrap_or(false), Ordering::Relaxed);
+                    let shows_countdown = countdown.is_checked().unwrap_or(false);
+                    app.state::<Tray>()
+                        .shows_countdown
+                        .store(shows_countdown, Ordering::Relaxed);
+                    settings::save(app, &settings::Settings { shows_countdown });
                     update(app);
+                }
+                "autostart" => {
+                    let launcher = app.autolaunch();
+                    let wanted = autostart.is_checked().unwrap_or(false);
+                    let result = if wanted {
+                        launcher.enable()
+                    } else {
+                        launcher.disable()
+                    };
+                    if let Err(error) = result {
+                        eprintln!("couldn't change launch at login: {error}");
+                        let _ = autostart.set_checked(launcher.is_enabled().unwrap_or(false));
+                    }
                 }
                 "quit" => app.exit(0),
                 _ => {}
@@ -101,7 +127,7 @@ impl Tray {
             icon,
             status_item,
             next_item,
-            shows_countdown: AtomicBool::new(false),
+            shows_countdown: AtomicBool::new(settings.shows_countdown),
             last: Mutex::new(None),
         })
     }

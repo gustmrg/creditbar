@@ -17,6 +17,9 @@ let reloading = false;
 /** Providers whose API key editor is open. */
 const editing = new Set();
 let lastBalances = [];
+/** Calendar view and the Beijing date (`YYYY-MM-DD`) it is centred on. */
+let calendarView = "month";
+let calendarCursor = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,6 +45,7 @@ async function reload() {
     snapshot = state.snapshot;
     renderSnapshot();
     renderBalances(state.balances);
+    await loadCalendar();
   } finally {
     reloading = false;
   }
@@ -187,12 +191,123 @@ function edit(id, open) {
   renderBalances(lastBalances);
 }
 
+// Calendar
+
+/** Today's date in Beijing as `YYYY-MM-DD`. */
+const beijingToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: BEIJING }).format(new Date());
+
+/** Dates are handled as UTC midnights so the local time zone never shifts them. */
+const parseDay = (day) => new Date(`${day}T00:00:00Z`);
+const formatDay = (date) => date.toISOString().slice(0, 10);
+
+function moveCursor(step) {
+  const date = parseDay(calendarCursor);
+  if (calendarView === "month") {
+    date.setUTCDate(1);
+    date.setUTCMonth(date.getUTCMonth() + step);
+  } else {
+    date.setUTCDate(date.getUTCDate() + 7 * step);
+  }
+  calendarCursor = formatDay(date);
+  loadCalendar();
+}
+
+async function loadCalendar() {
+  calendarCursor ??= beijingToday();
+  const date = parseDay(calendarCursor);
+  $("legend-off").textContent = calendarView === "month" ? "Off-peak all day" : "Off-peak";
+  $("legend-holiday").hidden = calendarView !== "month";
+  if (calendarView === "month") {
+    const days = await invoke("month_calendar", { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1 });
+    $("cal-title").textContent = date.toLocaleDateString([], { month: "long", year: "numeric", timeZone: "UTC" });
+    $("calendar").replaceChildren(renderMonth(days));
+  } else {
+    const days = await invoke("week_grid", { date: calendarCursor });
+    const short = (day) => parseDay(day).toLocaleDateString([], { month: "short", day: "numeric", timeZone: "UTC" });
+    $("cal-title").textContent = `${short(days[0].date)} – ${short(days[6].date)}`;
+    $("calendar").replaceChildren(renderWeek(days));
+  }
+}
+
+const weekdayName = (day, style) => parseDay(day).toLocaleDateString([], { weekday: style, timeZone: "UTC" });
+
+function renderMonth(days) {
+  const grid = el("div", { className: "month" });
+  // 2024-01-01 was a Monday.
+  for (let i = 0; i < 7; i++) {
+    grid.append(el("div", { className: "head" }, weekdayName(`2024-01-0${i + 1}`, "narrow")));
+  }
+  const leading = (parseDay(days[0].date).getUTCDay() + 6) % 7;
+  for (let i = 0; i < leading; i++) grid.append(el("div"));
+
+  const today = beijingToday();
+  for (const day of days) {
+    const type = day.info.kind.type;
+    const classes = ["day"];
+    if (type !== "regularWeekday") classes.push("off");
+    if (type === "publicHoliday") classes.push("holiday");
+    if (day.date === today) classes.push("today");
+    grid.append(
+      el("div", { className: classes.join(" "), title: `${day.date} · ${dayText(day.info)}` }, String(Number(day.date.slice(8)))),
+    );
+  }
+  return grid;
+}
+
+function renderWeek(days) {
+  const grid = el("div", { className: "week" });
+  grid.append(el("span"));
+  for (let hour = 0; hour < 24; hour++) {
+    grid.append(el("span", { className: "hour-label" }, hour % 6 === 0 ? String(hour) : ""));
+  }
+
+  const today = beijingToday();
+  const currentHour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: BEIJING, hour: "2-digit", hourCycle: "h23" }).format(new Date()),
+  );
+  for (const day of days) {
+    const isToday = day.date === today;
+    grid.append(
+      el(
+        "span",
+        { className: `label-cell${isToday ? " today" : ""}`, title: dayText(day.info) },
+        `${weekdayName(day.date, "short")} ${Number(day.date.slice(8))}`,
+      ),
+    );
+    day.hours.forEach((period, hour) => {
+      const classes = ["cell"];
+      if (period === "peak") classes.push("peak");
+      if (isToday && hour === currentHour) classes.push("now");
+      const until = String(hour + 1).padStart(2, "0");
+      grid.append(el("span", { className: classes.join(" "), title: `${String(hour).padStart(2, "0")}:00–${until}:00 · ${periodName(period)}` }));
+    });
+  }
+  return grid;
+}
+
+for (const tab of document.querySelectorAll("[role=tab]")) {
+  tab.addEventListener("click", () => {
+    calendarView = tab.dataset.view;
+    for (const other of document.querySelectorAll("[role=tab]")) {
+      other.setAttribute("aria-selected", String(other === tab));
+    }
+    loadCalendar();
+  });
+}
+$("cal-prev").addEventListener("click", () => moveCursor(-1));
+$("cal-next").addEventListener("click", () => moveCursor(1));
+
 listen("snapshot", (e) => {
   snapshot = e.payload;
   renderSnapshot();
+  loadCalendar();
 });
 listen("balances", (e) => renderBalances(e.payload));
-listen("panel-shown", reload);
+listen("panel-shown", () => {
+  // Opening the panel goes back to today.
+  calendarCursor = null;
+  reload();
+});
 
 $("quit").addEventListener("click", () => invoke("quit"));
 document.addEventListener("keydown", (e) => e.key === "Escape" && invoke("hide_panel"));

@@ -4,9 +4,12 @@
 mod balance;
 mod holidays;
 mod panel;
+mod settings;
 mod tray;
 
+use chrono::{NaiveDate, Utc};
 use serde::Serialize;
+use status_core::pricing::{self, CalendarDay};
 use status_core::PricingSnapshot;
 use tauri::{AppHandle, Manager, RunEvent, State};
 
@@ -27,6 +30,19 @@ fn get_state(holidays: State<'_, Holidays>, balances: State<'_, Balances>) -> Pa
         snapshot: holidays.snapshot_now(),
         balances: balances.views(),
     }
+}
+
+/// Every day of a month. `month` is 1-based.
+#[tauri::command]
+fn month_calendar(holidays: State<'_, Holidays>, year: i32, month: u32) -> Vec<CalendarDay> {
+    holidays.with_schedule(|schedule| pricing::month_days(year, month, schedule))
+}
+
+/// Monday to Sunday of the week containing `date` (`YYYY-MM-DD`), or of today in Beijing.
+#[tauri::command]
+fn week_grid(holidays: State<'_, Holidays>, date: Option<NaiveDate>) -> Vec<CalendarDay> {
+    let date = date.unwrap_or_else(|| pricing::beijing_date(Utc::now()));
+    holidays.with_schedule(|schedule| pricing::week_days(date, schedule))
 }
 
 #[tauri::command]
@@ -63,8 +79,14 @@ fn main() {
     }
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .invoke_handler(tauri::generate_handler![
             get_state,
+            month_calendar,
+            week_grid,
             refresh_balance,
             save_api_key,
             remove_api_key,

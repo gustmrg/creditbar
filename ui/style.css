@@ -212,3 +212,124 @@ footer {
   justify-content: space-between;
   align-items: center;
 }
+
+/* Calendar */
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.segmented {
+  display: flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--line);
+}
+
+.segmented button {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+}
+
+.segmented button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.cal-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+}
+
+button.nav {
+  width: 26px;
+  padding: 2px 0;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.month {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.month .head {
+  color: var(--muted);
+  font-size: 10.5px;
+  padding-bottom: 2px;
+}
+
+.month .day {
+  position: relative;
+  padding: 4px 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--peak) 14%, transparent);
+}
+
+.month .day.off { background: color-mix(in srgb, var(--off-peak) 16%, transparent); }
+.month .day.today { outline: 2px solid var(--brand); outline-offset: -2px; font-weight: 650; }
+
+.month .day.holiday::after,
+.dot {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.month .day.holiday::after {
+  position: absolute;
+  left: calc(50% - 2px);
+  bottom: 1px;
+}
+
+.week {
+  display: grid;
+  grid-template-columns: 52px repeat(24, 1fr);
+  gap: 1px;
+  align-items: center;
+  font-size: 10.5px;
+}
+
+.week .label-cell { color: var(--muted); white-space: nowrap; }
+.week .label-cell.today { color: var(--text); font-weight: 650; }
+.week .hour-label { color: var(--muted); font-size: 9.5px; }
+
+.week .cell {
+  height: 14px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--off-peak) 22%, transparent);
+}
+
+.week .cell.peak { background: var(--peak); }
+.week .cell.now { outline: 2px solid var(--brand); outline-offset: -1px; }
+
+.legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.swatch.peak { background: color-mix(in srgb, var(--peak) 45%, transparent); }
+.swatch.off { background: color-mix(in srgb, var(--off-peak) 45%, transparent); }

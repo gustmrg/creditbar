@@ -104,6 +104,56 @@ pub fn day_info(at: DateTime<Utc>, schedule: &HolidaySchedule) -> DayInfo {
     day_info_for_date(beijing_date(at), schedule)
 }
 
+/// One Beijing calendar day with its pricing rule.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarDay {
+    pub date: NaiveDate,
+    pub info: DayInfo,
+    /// The period of each Beijing hour, 00:00 to 23:00. Peak ranges start and end on the hour.
+    pub hours: Vec<PricePeriod>,
+}
+
+pub fn calendar_day(date: NaiveDate, schedule: &HolidaySchedule) -> CalendarDay {
+    let hours = (0..24)
+        .map(|hour| {
+            let local = date.and_hms_opt(hour, 0, 0).expect("valid hour");
+            let at = beijing()
+                .from_local_datetime(&local)
+                .unwrap()
+                .with_timezone(&Utc);
+            period(at, schedule)
+        })
+        .collect();
+    CalendarDay {
+        date,
+        info: day_info_for_date(date, schedule),
+        hours,
+    }
+}
+
+/// Every day of a month (for the monthly calendar). Empty for an invalid month.
+pub fn month_days(year: i32, month: u32, schedule: &HolidaySchedule) -> Vec<CalendarDay> {
+    let Some(first) = NaiveDate::from_ymd_opt(year, month, 1) else {
+        return Vec::new();
+    };
+    first
+        .iter_days()
+        .take_while(|day| day.month() == month)
+        .map(|day| calendar_day(day, schedule))
+        .collect()
+}
+
+/// Monday to Sunday of the week containing `date` (for the weekly grid).
+pub fn week_days(date: NaiveDate, schedule: &HolidaySchedule) -> Vec<CalendarDay> {
+    let monday = date.week(Weekday::Mon).first_day();
+    monday
+        .iter_days()
+        .take(7)
+        .map(|day| calendar_day(day, schedule))
+        .collect()
+}
+
 /// The period in effect at an instant.
 pub fn period(at: DateTime<Utc>, schedule: &HolidaySchedule) -> PricePeriod {
     if day_info(at, schedule).is_all_day_off_peak() {

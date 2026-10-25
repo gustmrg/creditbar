@@ -26,6 +26,24 @@
       <p id="day" class="muted small"></p>
     </section>
 
+    <section class="block">
+      <div class="tabs">
+        <div class="segmented" role="tablist">
+          <button role="tab" data-view="month" aria-selected="true">Month</button>
+          <button role="tab" data-view="week" aria-selected="false">Week</button>
+        </div>
+        <button id="cal-prev" class="nav" aria-label="Previous">‹</button>
+        <span id="cal-title" class="cal-title"></span>
+        <button id="cal-next" class="nav" aria-label="Next">›</button>
+      </div>
+      <div id="calendar"></div>
+      <div class="legend muted small">
+        <span><i class="swatch peak"></i>Peak hours</span>
+        <span><i class="swatch off"></i><span id="legend-off">Off-peak all day</span></span>
+        <span id="legend-holiday"><i class="dot"></i>Holiday</span>
+      </div>
+    </section>
+
     <section class="block card" id="balances"></section>
 
     <footer>

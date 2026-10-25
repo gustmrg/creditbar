@@ -52,6 +52,10 @@ impl Holidays {
         PricingSnapshot::new(Utc::now(), &self.schedule.read().unwrap())
     }
 
+    pub fn with_schedule<R>(&self, f: impl FnOnce(&HolidaySchedule) -> R) -> R {
+        f(&self.schedule.read().unwrap())
+    }
+
     /// Conditional GET; on any failure the current data stays in effect.
     async fn refresh(&self, client: &reqwest::Client) -> Result<(), String> {
         let mut request = client

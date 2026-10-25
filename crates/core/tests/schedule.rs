@@ -262,3 +262,41 @@ impl YearOffset for NaiveDate {
         self.with_year(self.year() + years).unwrap()
     }
 }
+
+#[test]
+fn month_calendar_marks_off_peak_days() {
+    let schedule = HolidaySchedule::bundled();
+    let october = pricing::month_days(2026, 10, &schedule);
+    assert_eq!(october.len(), 31);
+    assert_eq!(october[0].date, day(2026, 10, 1));
+    assert_eq!(
+        october[0].info.kind,
+        DayKind::PublicHoliday("国庆节".into())
+    );
+    assert!(october[0].hours.iter().all(|&p| p == OffPeak));
+    assert_eq!(october[7].info.kind, DayKind::RegularWeekday, "Oct 8");
+    assert!(pricing::month_days(2026, 13, &schedule).is_empty());
+}
+
+#[test]
+fn week_grid_runs_monday_to_sunday_by_hour() {
+    let schedule = HolidaySchedule::bundled();
+    // Wednesday 2026-09-16 → week of Monday 2026-09-14.
+    let week = pricing::week_days(day(2026, 9, 16), &schedule);
+    assert_eq!(week.len(), 7);
+    assert_eq!(week[0].date, day(2026, 9, 14));
+    assert_eq!(week[6].date, day(2026, 9, 20));
+
+    let monday = &week[0].hours;
+    let peak_hours: Vec<usize> = (0..24).filter(|&h| monday[h] == Peak).collect();
+    assert_eq!(peak_hours, vec![9, 10, 11, 14, 15, 16, 17]);
+    assert!(week[5].hours.iter().all(|&p| p == OffPeak), "Saturday");
+
+    // National Day week: holidays Mon–Wed, regular Thu–Fri, make-up workday Saturday.
+    let golden = pricing::week_days(day(2026, 10, 5), &schedule);
+    let has_peak: Vec<bool> = golden.iter().map(|d| d.hours.contains(&Peak)).collect();
+    assert_eq!(
+        has_peak,
+        vec![false, false, false, true, true, false, false]
+    );
+}
