@@ -78,5 +78,6 @@
   "note.noKeyLimit": "This key has no spending limit.",
   "note.balanceNeedsManagementKey": "The account balance needs a management key; showing this key’s usage instead.",
   "note.balanceUnavailable": "Couldn’t load the account balance.",
-  "balance.account": "Account balance"
+  "balance.account": "Account balance",
+  "settings.title": "Settings"
 }

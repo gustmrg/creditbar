@@ -10,6 +10,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use creditbar_core::pricing::{beijing, compact_countdown};
 use creditbar_core::{PricePeriod, PricingSnapshot};
+use serde::Serialize;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -27,8 +28,19 @@ pub struct Tray {
     menu: Menu<Wry>,
     /// Menu entries that only exist while DeepSeek pricing is shown.
     pricing: PricingItems,
+    pricing_toggle: CheckMenuItem<Wry>,
+    autostart: CheckMenuItem<Wry>,
     settings: Mutex<Settings>,
     last: Mutex<Option<Shown>>,
+}
+
+/// The preferences as the panel shows them, launch at login included.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsView {
+    #[serde(flatten)]
+    settings: Settings,
+    launch_at_login: bool,
 }
 
 struct PricingItems {
@@ -61,8 +73,11 @@ fn icon(attention: bool) -> Image<'static> {
     }
 }
 
-/// Position of "Show Countdown in Tray": after "Open Panel" and the pricing toggle.
-const COUNTDOWN_POSITION: usize = 5;
+// With pricing shown the menu reads: Open Panel, separator, period, next switch, separator,
+// pricing toggle, countdown toggle, launch at login, separator, Quit. "Open Panel" comes first
+// so it sits under the pointer when the menu opens (Linux trays always open the menu).
+const PRICING_POSITION: usize = 1;
+const COUNTDOWN_POSITION: usize = 6;
 
 impl Tray {
     pub fn build(app: &AppHandle) -> tauri::Result<Self> {
@@ -102,6 +117,7 @@ impl Tray {
             app,
             &[
                 &open,
+                &PredefinedMenuItem::separator(app)?,
                 &pricing_toggle,
                 &autostart,
                 &PredefinedMenuItem::separator(app)?,
@@ -115,32 +131,27 @@ impl Tray {
             .tooltip("CreditBar")
             .menu(&menu)
             .show_menu_on_left_click(false)
-            .on_menu_event(move |app, event| match event.id().as_ref() {
-                "open" => panel::show(app, None),
-                "pricing" => {
-                    let shown = pricing_toggle.is_checked().unwrap_or(true);
-                    change_settings(app, |s| s.shows_deepseek_pricing = shown);
-                }
-                "countdown" => {
-                    let tray = app.state::<Tray>();
-                    let shown = tray.pricing.countdown.is_checked().unwrap_or(false);
-                    change_settings(app, |s| s.shows_countdown = shown);
-                }
-                "autostart" => {
-                    let launcher = app.autolaunch();
-                    let wanted = autostart.is_checked().unwrap_or(false);
-                    let result = if wanted {
-                        launcher.enable()
-                    } else {
-                        launcher.disable()
-                    };
-                    if let Err(error) = result {
-                        eprintln!("couldn't change launch at login: {error}");
-                        let _ = autostart.set_checked(launcher.is_enabled().unwrap_or(false));
+            .on_menu_event(|app, event| {
+                let tray = app.state::<Tray>();
+                match event.id().as_ref() {
+                    "open" => panel::show(app, None),
+                    "pricing" => {
+                        let shown = tray.pricing_toggle.is_checked().unwrap_or(true);
+                        change_settings(app, |s| s.shows_deepseek_pricing = shown);
                     }
+                    "countdown" => {
+                        let shown = tray.pricing.countdown.is_checked().unwrap_or(false);
+                        change_settings(app, |s| s.shows_countdown = shown);
+                    }
+                    "autostart" => {
+                        let wanted = tray.autostart.is_checked().unwrap_or(false);
+                        if let Err(error) = set_launch_at_login(app, wanted) {
+                            eprintln!("couldn't change launch at login: {error}");
+                        }
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
                 }
-                "quit" => app.exit(0),
-                _ => {}
             })
             .on_tray_icon_event(|tray, event| {
                 if let TrayIconEvent::Click {
@@ -159,6 +170,8 @@ impl Tray {
             icon,
             menu,
             pricing,
+            pricing_toggle,
+            autostart,
             settings: Mutex::new(settings.clone()),
             last: Mutex::new(None),
         };
@@ -170,6 +183,12 @@ impl Tray {
         self.settings.lock().unwrap().clone()
     }
 
+    /// Hides the tray icon while the GNOME Shell extension shows CreditBar instead.
+    #[cfg(target_os = "linux")]
+    pub fn set_visible(&self, visible: bool) {
+        let _ = self.icon.set_visible(visible);
+    }
+
     /// Adds or removes the pricing entries (a menu item can't be hidden, only removed).
     fn show_pricing_items(&self, shown: bool) {
         let items = &self.pricing;
@@ -179,15 +198,23 @@ impl Tray {
         let _ = self.menu.remove(&items.separator);
         let _ = self.menu.remove(&items.countdown);
         if shown {
-            let _ = self.menu.insert(&items.status, 0);
-            let _ = self.menu.insert(&items.next, 1);
-            let _ = self.menu.insert(&items.separator, 2);
+            let _ = self.menu.insert(&items.separator, PRICING_POSITION);
+            let _ = self.menu.insert(&items.status, PRICING_POSITION + 1);
+            let _ = self.menu.insert(&items.next, PRICING_POSITION + 2);
             let _ = self.menu.insert(&items.countdown, COUNTDOWN_POSITION);
         }
     }
 }
 
-fn change_settings(app: &AppHandle, change: impl FnOnce(&mut Settings)) {
+pub fn settings_view(app: &AppHandle) -> SettingsView {
+    SettingsView {
+        settings: app.state::<Tray>().settings(),
+        launch_at_login: app.autolaunch().is_enabled().unwrap_or(false),
+    }
+}
+
+/// Applies a preference change from the menu or the panel, keeping both in step.
+pub fn change_settings(app: &AppHandle, change: impl FnOnce(&mut Settings)) {
     let tray = app.state::<Tray>();
     let settings = {
         let mut settings = tray.settings.lock().unwrap();
@@ -198,11 +225,29 @@ fn change_settings(app: &AppHandle, change: impl FnOnce(&mut Settings)) {
         }
         settings.clone()
     };
+    let _ = tray
+        .pricing_toggle
+        .set_checked(settings.shows_deepseek_pricing);
+    let _ = tray.pricing.countdown.set_checked(settings.shows_countdown);
     settings::save(app, &settings);
-    let _ = app.emit("settings", &settings);
+    let _ = app.emit("settings", settings_view(app));
     // Menu entries were re-inserted with stale text; force a full redraw.
     *tray.last.lock().unwrap() = None;
     update(app);
+}
+
+/// Registers or removes the login item; returns whether it is on afterwards.
+pub fn set_launch_at_login(app: &AppHandle, enabled: bool) -> Result<bool, String> {
+    let launcher = app.autolaunch();
+    let result = if enabled {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    };
+    let actual = launcher.is_enabled().unwrap_or(false);
+    let _ = app.state::<Tray>().autostart.set_checked(actual);
+    let _ = app.emit("settings", settings_view(app));
+    result.map(|_| actual).map_err(|e| e.to_string())
 }
 
 pub fn start(app: &AppHandle) {
@@ -230,6 +275,17 @@ fn update(app: &AppHandle) {
                 .then(|| compact_countdown(snapshot.seconds_until_transition())),
         }),
     };
+
+    #[cfg(target_os = "linux")]
+    crate::shell::publish(
+        app,
+        shown.attention,
+        shown
+            .pricing
+            .as_ref()
+            .and_then(|p| p.countdown.clone())
+            .unwrap_or_default(),
+    );
 
     let mut last = tray.last.lock().unwrap();
     if last.as_ref() == Some(&shown) {

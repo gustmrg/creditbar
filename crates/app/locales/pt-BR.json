@@ -78,5 +78,6 @@
   "note.noKeyLimit": "Esta chave não tem limite de gasto.",
   "note.balanceNeedsManagementKey": "O saldo da conta exige uma management key; mostrando o uso desta chave.",
   "note.balanceUnavailable": "Não foi possível carregar o saldo da conta.",
-  "balance.account": "Saldo da conta"
+  "balance.account": "Saldo da conta",
+  "settings.title": "Preferências"
 }

@@ -689,6 +689,7 @@ version = "0.2.0"
 dependencies = [
  "chrono",
  "creditbar-core",
+ "futures-util",
  "keyring",
  "reqwest 0.12.28",
  "serde",
@@ -699,6 +700,7 @@ dependencies = [
  "tauri-plugin-autostart",
  "tauri-plugin-opener",
  "tokio",
+ "zbus 5.19.0",
 ]
 
 [[package]]
@@ -4480,8 +4482,10 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
+ "tracing",
  "windows-sys 0.61.2",
 ]
 
@@ -5664,6 +5668,7 @@ dependencies = [
  "rustix",
  "serde",
  "serde_repr",
+ "tokio",
  "tracing",
  "uds_windows",
  "uuid",

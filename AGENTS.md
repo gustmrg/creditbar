@@ -12,7 +12,7 @@ docs.
 - Use Conventional Commits with a scope: `type(scope): summary`.
   - Types: `feat`, `fix`, `refactor`, `test`, `docs`, `style`, `chore`, `ci`.
   - The scope names the product area, not a file: `panel`, `tray`, `providers`, `pricing`,
-    `holidays`, `i18n`, `settings`, `release`, `deps`, …
+    `holidays`, `i18n`, `settings`, `gnome`, `release`, `deps`, …
   - The summary is lowercase, imperative, without a final period, and says what changes for
     the user: `feat(providers): read the OpenRouter account balance`.
 - The body is prose wrapped at about 72 columns that explains why and what changed. Trivial

@@ -38,11 +38,13 @@ ui/                     # panel: plain HTML/CSS/JS, no bundler
 
 ## Platform notes
 
-- **Linux / GNOME**: GNOME has no tray of its own. Enable the AppIndicator extension
+- **Linux / GNOME**: GNOME has no tray of its own. With the AppIndicator extension
   (`gnome-extensions enable ubuntu-appindicators@ubuntu.com`, package
-  `gnome-shell-extension-appindicator`). Linux trays only open the menu, so the panel is
-  reached through **Open Panel**; with DeepSeek pricing on, the menu itself shows the period and
-  the next switch.
+  `gnome-shell-extension-appindicator`) a plain click always opens the tray menu, which leads
+  with **Open Panel**. For one-click access install CreditBar's own
+  [GNOME Shell extension](gnome-shell-extension/README.md): it replaces the tray icon with a
+  top-bar button that opens the panel. The menu's preferences are also in the panel's
+  **Settings**.
 - **NVIDIA**: the app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` on Linux, otherwise WebKitGTK
   renders a blank window.
 - **macOS**: no Dock icon (accessory activation policy); the countdown can sit next to the icon.

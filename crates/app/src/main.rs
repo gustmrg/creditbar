@@ -6,6 +6,8 @@ mod holidays;
 mod i18n;
 mod panel;
 mod settings;
+#[cfg(target_os = "linux")]
+mod shell;
 mod tray;
 
 use chrono::{NaiveDate, Utc};
@@ -23,20 +25,42 @@ use crate::holidays::Holidays;
 struct PanelState {
     snapshot: PricingSnapshot,
     providers: Vec<ProviderView>,
-    settings: settings::Settings,
+    settings: tray::SettingsView,
 }
 
 #[tauri::command]
 fn get_state(
+    app: AppHandle,
     holidays: State<'_, Holidays>,
     balances: State<'_, Balances>,
-    tray: State<'_, tray::Tray>,
 ) -> PanelState {
     PanelState {
         snapshot: holidays.snapshot_now(),
         providers: balances.views(),
-        settings: tray.settings(),
+        settings: tray::settings_view(&app),
     }
+}
+
+/// Changes the preferences given; the others stay as they are.
+#[tauri::command]
+fn update_settings(
+    app: AppHandle,
+    shows_deepseek_pricing: Option<bool>,
+    shows_countdown: Option<bool>,
+) {
+    tray::change_settings(&app, |settings| {
+        if let Some(value) = shows_deepseek_pricing {
+            settings.shows_deepseek_pricing = value;
+        }
+        if let Some(value) = shows_countdown {
+            settings.shows_countdown = value;
+        }
+    });
+}
+
+#[tauri::command]
+fn set_launch_at_login(app: AppHandle, enabled: bool) -> Result<bool, String> {
+    tray::set_launch_at_login(&app, enabled)
 }
 
 /// Every day of a month. `month` is 1-based.
@@ -122,6 +146,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_state,
             get_i18n,
+            update_settings,
+            set_launch_at_login,
             month_calendar,
             week_grid,
             refresh_balance,
@@ -141,12 +167,16 @@ fn main() {
             app.manage(Holidays::load(handle));
             app.manage(Balances::new());
             app.manage(panel::PanelState::default());
+            #[cfg(target_os = "linux")]
+            app.manage(shell::Shell::default());
             app.manage(tray::Tray::build(handle)?);
 
             panel::install(handle);
             holidays::start(handle);
             balance::start(handle);
             tray::start(handle);
+            #[cfg(target_os = "linux")]
+            shell::start(handle);
 
             // Development aid: open the panel at launch.
             if std::env::var_os("CREDITBAR_OPEN_PANEL").is_some() {

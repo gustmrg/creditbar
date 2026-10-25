@@ -1,0 +1,7 @@
+{
+  "uuid": "creditbar@gustmrg.dev",
+  "name": "CreditBar",
+  "description": "CreditBar's button in the top bar: one click opens its panel. Requires the CreditBar app.",
+  "shell-version": ["45", "46", "47", "48", "49"],
+  "url": "https://github.com/gustmrg/creditbar"
+}

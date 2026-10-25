@@ -95,6 +95,7 @@ async function reload() {
     const state = await invoke("get_state");
     snapshot = state.snapshot;
     settings = state.settings;
+    renderSettings();
     renderSnapshot();
     renderProviders(state.providers);
     await loadCalendar();
@@ -555,6 +556,7 @@ listen("snapshot", (e) => {
 listen("providers", (e) => renderProviders(e.payload));
 listen("settings", (e) => {
   settings = e.payload;
+  renderSettings();
   renderProviders(providers);
 });
 listen("panel-shown", () => {
@@ -566,6 +568,31 @@ listen("panel-shown", () => {
 // A hidden window may keep running timers; the aquarium stops until the panel opens again.
 listen("panel-hidden", () => Aquarium.sleep());
 document.addEventListener("visibilitychange", () => (document.hidden ? Aquarium.sleep() : Aquarium.wake()));
+
+// Preferences
+
+function renderSettings() {
+  $("setting-pricing").checked = settings.showsDeepseekPricing;
+  $("setting-countdown").checked = settings.showsCountdown;
+  $("setting-countdown").disabled = !settings.showsDeepseekPricing;
+  $("setting-login").checked = settings.launchAtLogin;
+}
+
+$("settings-toggle").addEventListener("click", () => {
+  const open = $("settings").hidden;
+  $("settings").hidden = !open;
+  $("settings-toggle").setAttribute("aria-expanded", String(open));
+});
+$("setting-pricing").addEventListener("change", (e) =>
+  invoke("update_settings", { showsDeepseekPricing: e.target.checked }),
+);
+$("setting-countdown").addEventListener("change", (e) => invoke("update_settings", { showsCountdown: e.target.checked }));
+$("setting-login").addEventListener("change", (e) =>
+  invoke("set_launch_at_login", { enabled: e.target.checked }).catch((error) => {
+    console.error("couldn't change launch at login", error);
+    renderSettings();
+  }),
+);
 
 $("quit").addEventListener("click", () => invoke("quit"));
 document.addEventListener("keydown", (e) => e.key === "Escape" && invoke("hide_panel"));

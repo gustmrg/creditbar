@@ -4,7 +4,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const directory = path.resolve(process.argv[2] ?? "dist");
-const names = (await readdir(directory)).filter((name) => /\.(?:dmg|deb|AppImage)$/i.test(name)).sort();
+const names = (await readdir(directory)).filter((name) => /\.(?:dmg|deb|AppImage|zip)$/i.test(name)).sort();
 const lines = [];
 for (const name of names) {
   const digest = createHash("sha256")

@@ -252,9 +252,28 @@ button.link.error { color: var(--danger); }
 
 footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.settings label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings input { flex: none; accent-color: var(--brand); }
+.settings label:has(input:disabled) { color: var(--muted); }
 
 .brand {
   color: var(--muted);

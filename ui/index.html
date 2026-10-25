@@ -16,8 +16,18 @@
     <!-- Providers without a key. -->
     <section class="add" id="add-providers"></section>
 
+    <!-- The same preferences as the tray menu, which is hidden when the GNOME Shell extension
+         stands in for the tray icon. -->
+    <section class="settings" id="settings" hidden>
+      <label><input type="checkbox" id="setting-pricing"> <span data-i18n="tray.deepseekPricing"></span></label>
+      <label><input type="checkbox" id="setting-countdown"> <span data-i18n="tray.countdown"></span></label>
+      <label><input type="checkbox" id="setting-login"> <span data-i18n="tray.autostart"></span></label>
+    </section>
+
     <footer>
       <span class="brand">CreditBar</span>
+      <span class="spacer"></span>
+      <button id="settings-toggle" class="link" data-i18n="settings.title" aria-controls="settings" aria-expanded="false"></button>
       <button id="quit" class="link" data-i18n="panel.quit"></button>
     </footer>
   </main>

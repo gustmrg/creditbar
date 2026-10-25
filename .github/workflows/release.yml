@@ -111,6 +111,7 @@ jobs:
             artifacts: |
               target/release/bundle/deb/*.deb
               target/release/bundle/appimage/*.AppImage
+              creditbar@gustmrg.dev.shell-extension.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -130,6 +131,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: package-${{ matrix.name }}
+      - name: Package the GNOME Shell extension
+        if: runner.os == 'Linux'
+        run: |
+          cd gnome-shell-extension/creditbar@gustmrg.dev
+          zip -r "$GITHUB_WORKSPACE/creditbar@gustmrg.dev.shell-extension.zip" .
       - name: Build and package
         working-directory: crates/app
         # Unsigned: there is no Apple Developer ID, so macOS builds are ad-hoc signed.
@@ -187,7 +193,7 @@ jobs:
       - name: Collect the installers
         run: |
           mkdir dist
-          find artifacts -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' \) -exec mv -t dist {} +
+          find artifacts -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.zip' \) -exec mv -t dist {} +
           ls -l dist
       - name: Generate checksums
         run: node scripts/checksums.mjs dist

@@ -69,13 +69,16 @@ pub fn hide(app: &AppHandle) {
     }
 }
 
-/// Tray click. Clicking the icon while the panel is open first blurs (and hides) it, so a
-/// click right after a hide means "close", not "reopen".
-pub fn toggle(app: &AppHandle, anchor: Rect) {
-    let Some(panel) = window(app) else { return };
+/// Tray (or GNOME Shell button) click; returns whether the panel is open afterwards. Clicking
+/// the icon while the panel is open first blurs (and hides) it, so a click right after a hide
+/// means "close", not "reopen".
+pub fn toggle(app: &AppHandle, anchor: Rect) -> bool {
+    let Some(panel) = window(app) else {
+        return false;
+    };
     if panel.is_visible().unwrap_or(false) {
         hide(app);
-        return;
+        return false;
     }
     let just_hidden = app
         .state::<PanelState>()
@@ -86,6 +89,7 @@ pub fn toggle(app: &AppHandle, anchor: Rect) {
     if !just_hidden {
         show(app, Some(anchor));
     }
+    !just_hidden
 }
 
 /// `anchor` is the tray icon's rectangle; Linux trays don't report clicks, so the
