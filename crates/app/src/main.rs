@@ -3,6 +3,7 @@
 
 mod balance;
 mod holidays;
+mod i18n;
 mod panel;
 mod settings;
 mod tray;
@@ -43,6 +44,12 @@ fn month_calendar(holidays: State<'_, Holidays>, year: i32, month: u32) -> Vec<C
 fn week_grid(holidays: State<'_, Holidays>, date: Option<NaiveDate>) -> Vec<CalendarDay> {
     let date = date.unwrap_or_else(|| pricing::beijing_date(Utc::now()));
     holidays.with_schedule(|schedule| pricing::week_days(date, schedule))
+}
+
+/// The UI strings for the system language.
+#[tauri::command]
+fn get_i18n() -> &'static i18n::I18n {
+    i18n::get()
 }
 
 #[tauri::command]
@@ -91,6 +98,7 @@ fn main() {
         ))
         .invoke_handler(tauri::generate_handler![
             get_state,
+            get_i18n,
             month_calendar,
             week_grid,
             refresh_balance,

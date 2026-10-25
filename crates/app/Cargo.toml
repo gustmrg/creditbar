@@ -18,4 +18,5 @@ serde_json.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["time"] }
 tauri-plugin-autostart = "2"
+sys-locale = "0.3"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }

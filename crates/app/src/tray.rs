@@ -17,6 +17,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::holidays::Holidays;
+use crate::i18n::{t, tf};
 use crate::{panel, settings};
 
 pub struct Tray {
@@ -47,11 +48,11 @@ impl Tray {
         let settings = settings::load(app);
         let status_item = MenuItem::with_id(app, "status", "…", false, None::<&str>)?;
         let next_item = MenuItem::with_id(app, "next", "…", false, None::<&str>)?;
-        let open = MenuItem::with_id(app, "open", "Open Panel", true, None::<&str>)?;
+        let open = MenuItem::with_id(app, "open", t("tray.open"), true, None::<&str>)?;
         let countdown = CheckMenuItem::with_id(
             app,
             "countdown",
-            "Show Countdown in Tray",
+            t("tray.countdown"),
             true,
             settings.shows_countdown,
             None::<&str>,
@@ -59,12 +60,12 @@ impl Tray {
         let autostart = CheckMenuItem::with_id(
             app,
             "autostart",
-            "Launch at Login",
+            t("tray.autostart"),
             true,
             app.autolaunch().is_enabled().unwrap_or(false),
             None::<&str>,
         )?;
-        let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+        let quit = MenuItem::with_id(app, "quit", t("tray.quit"), true, None::<&str>)?;
         let menu = Menu::with_items(
             app,
             &[
@@ -182,19 +183,19 @@ fn update(app: &AppHandle) {
     *last = Some(shown);
 }
 
-fn status_text(period: PricePeriod) -> &'static str {
-    match period {
-        PricePeriod::Peak => "Peak hours · full price",
-        PricePeriod::OffPeak => "Off-peak hours · half price",
-    }
+fn status_text(period: PricePeriod) -> String {
+    t(match period {
+        PricePeriod::Peak => "tray.status.peak",
+        PricePeriod::OffPeak => "tray.status.offPeak",
+    })
 }
 
 /// "Peak at 09:00 Beijing (in 3h 40m)". Minute precision keeps the menu from redrawing every second.
 fn next_text(snapshot: &PricingSnapshot) -> String {
-    let period = match snapshot.next_period {
-        PricePeriod::Peak => "Peak",
-        PricePeriod::OffPeak => "Off-peak",
-    };
+    let period = t(match snapshot.next_period {
+        PricePeriod::Peak => "period.peakShort",
+        PricePeriod::OffPeak => "period.offPeakShort",
+    });
     let at = beijing_time(snapshot.next_transition);
     let minutes = (snapshot.seconds_until_transition() + 59) / 60;
     let remaining = match (minutes / (24 * 60), (minutes / 60) % 24, minutes % 60) {
@@ -202,7 +203,14 @@ fn next_text(snapshot: &PricingSnapshot) -> String {
         (0, h, m) => format!("{h}h {m:02}m"),
         (d, h, _) => format!("{d}d {h}h"),
     };
-    format!("{period} at {at} Beijing (in {remaining})")
+    tf(
+        "tray.next",
+        &[
+            ("period", &period),
+            ("time", &at),
+            ("remaining", &remaining),
+        ],
+    )
 }
 
 fn beijing_time(at: DateTime<Utc>) -> String {

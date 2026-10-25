@@ -6,8 +6,10 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use status_core::providers::{self, Balance, BalanceProvider};
+use status_core::providers::{self, Balance, BalanceError, BalanceProvider};
 use tauri::{AppHandle, Emitter, Manager};
+
+use crate::i18n::{t, tf};
 
 const KEYRING_SERVICE: &str = "dev.gustmrg.deepseekstatus";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(5 * 60);
@@ -160,6 +162,21 @@ pub fn refresh_if_stale(app: &AppHandle) {
     }
 }
 
+fn error_text(error: &BalanceError, provider: &str) -> String {
+    match error {
+        BalanceError::Unauthorized => t("error.unauthorized"),
+        BalanceError::Http { status } => tf(
+            "error.http",
+            &[("provider", provider), ("status", &status.to_string())],
+        ),
+        BalanceError::Network(detail) => tf(
+            "error.network",
+            &[("provider", provider), ("detail", detail)],
+        ),
+        BalanceError::Decoding => tf("error.decoding", &[("provider", provider)]),
+    }
+}
+
 /// `force` supersedes a request in flight (a new key must be checked right away).
 pub async fn refresh(app: AppHandle, provider_id: String, force: bool) {
     let balances = app.state::<Balances>();
@@ -193,7 +210,7 @@ pub async fn refresh(app: AppHandle, provider_id: String, force: bool) {
             }
             Err(error) => {
                 slot.view.suggests_replacing_key = error.suggests_replacing_key();
-                slot.view.error = Some(error.to_string());
+                slot.view.error = Some(error_text(&error, provider.display_name()));
             }
         }
         true
@@ -206,7 +223,7 @@ pub async fn refresh(app: AppHandle, provider_id: String, force: bool) {
 pub async fn save_key(app: AppHandle, provider_id: String, key: String) -> Result<(), String> {
     let key = key.trim().to_owned();
     if key.is_empty() {
-        return Err("Please enter an API key.".into());
+        return Err(t("error.keyEmpty"));
     }
     let id = provider_id.clone();
     let stored = key.clone();
@@ -216,7 +233,7 @@ pub async fn save_key(app: AppHandle, provider_id: String, key: String) -> Resul
             .map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| format!("Couldn't save the API key: {e}"))?;
+    .map_err(|e| tf("error.keySave", &[("detail", &e)]))?;
 
     app.state::<Balances>().with_slot(&provider_id, |slot| {
         slot.key = Some(key);
@@ -235,7 +252,8 @@ pub async fn remove_key(app: AppHandle, provider_id: String) -> Result<(), Strin
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.to_string()),
     })
-    .await?;
+    .await
+    .map_err(|e| tf("error.keyRemove", &[("detail", &e)]))?;
 
     app.state::<Balances>().with_slot(&provider_id, |slot| {
         slot.key = None;

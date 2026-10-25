@@ -19,7 +19,7 @@
     </section>
 
     <section class="block">
-      <div class="label">Next switch</div>
+      <div class="label" data-i18n="panel.nextSwitch"></div>
       <div class="countdown" id="countdown">--:--:--</div>
       <div id="next" class="muted"></div>
       <div class="progress"><div id="progress"></div></div>
@@ -29,26 +29,26 @@
     <section class="block">
       <div class="tabs">
         <div class="segmented" role="tablist">
-          <button role="tab" data-view="month" aria-selected="true">Month</button>
-          <button role="tab" data-view="week" aria-selected="false">Week</button>
+          <button role="tab" data-view="month" aria-selected="true" data-i18n="calendar.month"></button>
+          <button role="tab" data-view="week" aria-selected="false" data-i18n="calendar.week"></button>
         </div>
-        <button id="cal-prev" class="nav" aria-label="Previous">‹</button>
+        <button id="cal-prev" class="nav" data-i18n-label="calendar.previous">‹</button>
         <span id="cal-title" class="cal-title"></span>
-        <button id="cal-next" class="nav" aria-label="Next">›</button>
+        <button id="cal-next" class="nav" data-i18n-label="calendar.next">›</button>
       </div>
       <div id="calendar"></div>
       <div class="legend muted small">
-        <span><i class="swatch peak"></i>Peak hours</span>
-        <span><i class="swatch off"></i><span id="legend-off">Off-peak all day</span></span>
-        <span id="legend-holiday"><i class="dot"></i>Holiday</span>
+        <span><i class="swatch peak"></i><span data-i18n="legend.peak"></span></span>
+        <span><i class="swatch off"></i><span id="legend-off"></span></span>
+        <span id="legend-holiday"><i class="dot"></i><span data-i18n="legend.holiday"></span></span>
       </div>
     </section>
 
     <section class="block card" id="balances"></section>
 
     <footer>
-      <span class="muted small">Times in Beijing (UTC+8)</span>
-      <button id="quit" class="link">Quit</button>
+      <span class="muted small" data-i18n="panel.beijingNote"></span>
+      <button id="quit" class="link" data-i18n="panel.quit"></button>
     </footer>
   </main>
 </body>

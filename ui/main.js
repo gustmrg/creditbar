@@ -2,22 +2,23 @@ const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
 const BEIJING = "Asia/Shanghai";
-const HOLIDAYS = {
-  元旦: "New Year’s Day",
-  春节: "Chinese New Year",
-  清明: "Qingming Festival",
-  劳动节: "Labor Day",
-  端午节: "Dragon Boat Festival",
-  中秋节: "Mid-Autumn Festival",
-  国庆节: "National Day",
-};
 
-/** What a balance figure measures (see `AmountKind` in the core). */
-const AMOUNT_KINDS = {
-  accountBalance: "Account balance",
-  keyLimitRemaining: "Left on this key’s limit",
-  keySpent: "Spent with this key (no limit set)",
-};
+/** Filled from the backend's `get_i18n` before the first render. */
+let i18n = { locale: "en", strings: {}, holidayKeys: {} };
+
+/** A UI string, with `{name}` placeholders replaced from `vars`. */
+function t(key, vars = {}) {
+  const text = i18n.strings[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? vars[name] : match));
+}
+
+function applyStaticStrings() {
+  document.documentElement.lang = i18n.locale;
+  for (const node of document.querySelectorAll("[data-i18n]")) node.textContent = t(node.dataset.i18n);
+  for (const node of document.querySelectorAll("[data-i18n-label]")) {
+    node.setAttribute("aria-label", t(node.dataset.i18nLabel));
+  }
+}
 
 let snapshot = null;
 let reloading = false;
@@ -38,11 +39,16 @@ function el(tag, props = {}, ...children) {
 }
 
 const beijingTime = (iso) =>
-  new Date(iso).toLocaleTimeString([], { timeZone: BEIJING, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  new Date(iso).toLocaleTimeString(i18n.locale, {
+    timeZone: BEIJING,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
 
-const localTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const localTime = (iso) => new Date(iso).toLocaleTimeString(i18n.locale, { hour: "2-digit", minute: "2-digit" });
 
-const periodName = (period) => (period === "peak" ? "Peak hours" : "Off-peak hours");
+const periodName = (period) => t(period === "peak" ? "period.peak" : "period.offPeak");
 
 async function reload() {
   if (reloading) return;
@@ -62,27 +68,31 @@ function renderSnapshot() {
   const peak = snapshot.period === "peak";
   document.body.dataset.period = snapshot.period;
   $("period").textContent = periodName(snapshot.period);
-  $("price").textContent = peak ? "Full price (100%)" : "Half the peak price (50%)";
+  $("price").textContent = t(peak ? "price.peak" : "price.offPeak");
   $("multiplier").textContent = peak ? "×1.0" : "×0.5";
 
   const sameZone = new Date().getTimezoneOffset() === -480;
   const at = beijingTime(snapshot.nextTransition);
-  $("next").textContent =
-    `${periodName(snapshot.nextPeriod)} at ${at}` +
-    (sameZone ? "" : ` · ${localTime(snapshot.nextTransition)} your time`);
+  const next = t("panel.nextAt", { period: periodName(snapshot.nextPeriod), time: at });
+  $("next").textContent = sameZone
+    ? next
+    : `${next} · ${t("panel.yourTime", { time: localTime(snapshot.nextTransition) })}`;
   $("day").textContent = dayText(snapshot.dayInfo);
   tick();
 }
 
 function dayText({ kind, scheduleIsCovered }) {
-  const holiday = HOLIDAYS[kind.name] ?? "Public holiday";
-  const text = {
-    publicHoliday: `${holiday} · off-peak all day`,
-    alternateWorkdayWeekend: `${holiday} make-up workday on a weekend · off-peak all day`,
-    weekend: "Weekend · off-peak all day",
-    regularWeekday: "Weekday · peak 09:00–12:00 and 14:00–18:00",
-  }[kind.type];
-  return scheduleIsCovered ? text : `${text} · holiday calendar not available for this year`;
+  const name = t(`holiday.${i18n.holidayKeys[kind.name] ?? "public"}`);
+  const text = t(
+    {
+      publicHoliday: "day.holiday",
+      alternateWorkdayWeekend: "day.makeup",
+      weekend: "day.weekend",
+      regularWeekday: "day.weekday",
+    }[kind.type],
+    { name },
+  );
+  return scheduleIsCovered ? text : t("day.notCovered", { text });
 }
 
 function tick() {
@@ -102,7 +112,7 @@ function formatAmount(currency, value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return `${value} ${currency}`;
   try {
-    return new Intl.NumberFormat([], { style: "currency", currency }).format(number);
+    return new Intl.NumberFormat(i18n.locale, { style: "currency", currency }).format(number);
   } catch {
     return `${value} ${currency}`;
   }
@@ -110,7 +120,7 @@ function formatAmount(currency, value) {
 
 function renderBalances(balances) {
   lastBalances = balances;
-  $("balances").replaceChildren(el("div", { className: "label" }, "Balance"), ...balances.map(renderProvider));
+  $("balances").replaceChildren(el("div", { className: "label" }, t("balance.title")), ...balances.map(renderProvider));
 }
 
 function renderProvider(view) {
@@ -120,11 +130,11 @@ function renderProvider(view) {
   // Without a key the header only offers to add one; the editor opens on demand.
   const action = view.hasKey
     ? el("button", {
-        textContent: view.refreshing ? "Refreshing…" : "Refresh",
+        textContent: t(view.refreshing ? "balance.refreshing" : "balance.refresh"),
         disabled: view.refreshing,
         onclick: () => invoke("refresh_balance", { providerId: id }),
       })
-    : !isEditing && el("button", { className: "link small", textContent: "Add API key", onclick: () => edit(id, true) });
+    : !isEditing && el("button", { className: "link small", textContent: t("balance.addKey"), onclick: () => edit(id, true) });
   const updated = view.lastRefreshed
     ? el("span", { className: "muted small" }, localTime(view.lastRefreshed))
     : null;
@@ -138,9 +148,9 @@ function renderProvider(view) {
         "div",
         { className: "muted small" },
         [
-          AMOUNT_KINDS[a.kind],
-          a.granted != null && `promo ${formatAmount(a.currency, a.granted)}`,
-          a.toppedUp != null && `paid ${formatAmount(a.currency, a.toppedUp)}`,
+          t(`amount.${a.kind}`),
+          a.granted != null && t("balance.promo", { amount: formatAmount(a.currency, a.granted) }),
+          a.toppedUp != null && t("balance.paid", { amount: formatAmount(a.currency, a.toppedUp) }),
         ]
           .filter(Boolean)
           .join(" · "),
@@ -153,13 +163,13 @@ function renderProvider(view) {
     { className: "provider" },
     el("div", { className: "provider-head" }, el("span", { className: "name" }, view.displayName), updated, action),
     ...amounts,
-    view.balance && !view.balance.isAvailable && el("p", { className: "error small" }, "Not enough balance for API calls."),
+    view.balance && !view.balance.isAvailable && el("p", { className: "error small" }, t("balance.unavailable")),
     view.error && el("p", { className: "error small" }, view.error),
     isEditing
       ? keyEditor(view)
       : view.hasKey &&
           el("button", { className: "link small", onclick: () => edit(id, true) },
-            view.suggestsReplacingKey ? "Replace API key" : "Change API key"),
+            t(view.suggestsReplacingKey ? "balance.replaceKey" : "balance.changeKey")),
   );
 }
 
@@ -185,16 +195,16 @@ function keyEditor(view) {
       "div",
       { className: "row" },
       input,
-      el("button", { className: "primary", textContent: "Save", onclick: save }),
+      el("button", { className: "primary", textContent: t("balance.save"), onclick: save }),
     ),
     el(
       "div",
       { className: "row" },
-      el("button", { className: "link small", textContent: "Cancel", onclick: () => edit(id, false) }),
+      el("button", { className: "link small", textContent: t("balance.cancel"), onclick: () => edit(id, false) }),
       view.hasKey &&
         el("button", {
           className: "link small error",
-          textContent: "Remove key",
+          textContent: t("balance.removeKey"),
           onclick: () => invoke("remove_api_key", { providerId: id }).then(() => editing.delete(id)),
         }),
     ),
@@ -231,21 +241,22 @@ function moveCursor(step) {
 async function loadCalendar() {
   calendarCursor ??= beijingToday();
   const date = parseDay(calendarCursor);
-  $("legend-off").textContent = calendarView === "month" ? "Off-peak all day" : "Off-peak";
+  $("legend-off").textContent = t(calendarView === "month" ? "legend.offAllDay" : "legend.off");
   $("legend-holiday").hidden = calendarView !== "month";
   if (calendarView === "month") {
     const days = await invoke("month_calendar", { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1 });
-    $("cal-title").textContent = date.toLocaleDateString([], { month: "long", year: "numeric", timeZone: "UTC" });
+    $("cal-title").textContent = date.toLocaleDateString(i18n.locale, { month: "long", year: "numeric", timeZone: "UTC" });
     $("calendar").replaceChildren(renderMonth(days));
   } else {
     const days = await invoke("week_grid", { date: calendarCursor });
-    const short = (day) => parseDay(day).toLocaleDateString([], { month: "short", day: "numeric", timeZone: "UTC" });
+    const short = (day) => parseDay(day).toLocaleDateString(i18n.locale, { month: "short", day: "numeric", timeZone: "UTC" });
     $("cal-title").textContent = `${short(days[0].date)} – ${short(days[6].date)}`;
     $("calendar").replaceChildren(renderWeek(days));
   }
 }
 
-const weekdayName = (day, style) => parseDay(day).toLocaleDateString([], { weekday: style, timeZone: "UTC" });
+const weekdayName = (day, style) =>
+  parseDay(day).toLocaleDateString(i18n.locale, { weekday: style, timeZone: "UTC" });
 
 function renderMonth(days) {
   const grid = el("div", { className: "month" });
@@ -333,5 +344,15 @@ new ResizeObserver(([entry]) => {
   invoke("resize_panel", { height: entry.target.getBoundingClientRect().height });
 }).observe(document.querySelector("main"));
 
-setInterval(tick, 1000);
-reload();
+async function init() {
+  try {
+    i18n = await invoke("get_i18n");
+  } catch (error) {
+    console.error("couldn't load UI strings", error);
+  }
+  applyStaticStrings();
+  setInterval(tick, 1000);
+  await reload();
+}
+
+init();

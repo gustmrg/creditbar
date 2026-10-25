@@ -199,17 +199,22 @@ impl HolidaySchedule {
 
 /// Stable key for a holiday name, for the UI to localize. Unknown names map to `"public"`.
 pub fn holiday_name_key(name: &str) -> &'static str {
-    match name {
-        "元旦" => "newYear",
-        "春节" => "springFestival",
-        "清明" => "qingming",
-        "劳动节" => "labourDay",
-        "端午节" => "dragonBoat",
-        "中秋节" => "midAutumn",
-        "国庆节" => "nationalDay",
-        _ => "public",
-    }
+    HOLIDAY_NAME_KEYS
+        .iter()
+        .find(|(chinese, _)| *chinese == name)
+        .map_or("public", |(_, key)| key)
 }
+
+/// Apple's Chinese holiday names and their localization keys.
+pub const HOLIDAY_NAME_KEYS: [(&str, &str); 7] = [
+    ("元旦", "newYear"),
+    ("春节", "springFestival"),
+    ("清明", "qingming"),
+    ("劳动节", "labourDay"),
+    ("端午节", "dragonBoat"),
+    ("中秋节", "midAutumn"),
+    ("国庆节", "nationalDay"),
+];
 
 /// `YYYYMMDD` (all-day `VALUE=DATE`). Date-times are not used by the holiday calendar.
 fn parse_ics_date(value: &str) -> Option<NaiveDate> {
