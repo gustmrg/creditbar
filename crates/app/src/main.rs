@@ -10,8 +10,8 @@ mod tray;
 
 use chrono::{NaiveDate, Utc};
 use serde::Serialize;
-use status_core::pricing::{self, CalendarDay};
-use status_core::PricingSnapshot;
+use creditbar_core::pricing::{self, CalendarDay};
+use creditbar_core::PricingSnapshot;
 use tauri::{AppHandle, Manager, RunEvent, State};
 
 use crate::balance::{BalanceView, Balances};
@@ -125,7 +125,7 @@ fn main() {
             tray::start(handle);
 
             // Development aid: open the panel at launch.
-            if std::env::var_os("DEEPSEEK_STATUS_OPEN_PANEL").is_some() {
+            if std::env::var_os("CREDITBAR_OPEN_PANEL").is_some() {
                 panel::show(handle, None);
             }
             Ok(())

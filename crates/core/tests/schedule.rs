@@ -1,9 +1,9 @@
 //! Ported from the Swift app's self-check (`Tools/Snapshot/main.swift`, `checkSchedule`).
 
 use chrono::{DateTime, FixedOffset, NaiveDate, TimeZone, Utc};
-use status_core::holidays::{EntryKind, HolidaySchedule};
-use status_core::pricing::{self, beijing, compact_countdown, DayKind, PricingSnapshot};
-use status_core::PricePeriod::{self, OffPeak, Peak};
+use creditbar_core::holidays::{EntryKind, HolidaySchedule};
+use creditbar_core::pricing::{self, beijing, compact_countdown, DayKind, PricingSnapshot};
+use creditbar_core::PricePeriod::{self, OffPeak, Peak};
 
 fn bj(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> DateTime<Utc> {
     beijing()

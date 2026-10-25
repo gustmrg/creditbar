@@ -6,12 +6,12 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use status_core::providers::{self, Balance, BalanceError, BalanceProvider};
+use creditbar_core::providers::{self, Balance, BalanceError, BalanceProvider};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::i18n::{t, tf};
 
-const KEYRING_SERVICE: &str = "dev.gustmrg.deepseekstatus";
+const KEYRING_SERVICE: &str = "dev.gustmrg.creditbar";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Debug, Clone, Serialize)]
@@ -194,7 +194,7 @@ pub async fn refresh(app: AppHandle, provider_id: String, force: bool) {
     };
     emit(&app);
 
-    let result = status_core::http::fetch_balance(&balances.http, provider.as_ref(), &key).await;
+    let result = creditbar_core::http::fetch_balance(&balances.http, provider.as_ref(), &key).await;
 
     let current = balances.with_slot(&provider_id, |slot| {
         if slot.generation != generation {

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DeepSeek Status",
+  "productName": "CreditBar",
   "version": "0.1.0",
-  "identifier": "dev.gustmrg.deepseekstatus",
+  "identifier": "dev.gustmrg.creditbar",
   "build": {
     "frontendDist": "../../ui"
   },
@@ -11,7 +11,7 @@
     "windows": [
       {
         "label": "panel",
-        "title": "DeepSeek Status",
+        "title": "CreditBar",
         "width": 340,
         "height": 640,
         "visible": false,
@@ -29,8 +29,8 @@
     "active": true,
     "targets": "all",
     "category": "Utility",
-    "shortDescription": "DeepSeek peak / off-peak pricing and API balances in your tray",
-    "longDescription": "Shows whether DeepSeek is in peak or off-peak pricing, counts down to the next switch, and shows the API balance of DeepSeek, Kimi and OpenRouter accounts.",
+    "shortDescription": "API credit balances for your LLM providers, in the tray",
+    "longDescription": "Shows the API balance of your DeepSeek, Kimi and OpenRouter accounts in the system tray, plus DeepSeek’s peak / off-peak pricing schedule.",
     "copyright": "© 2026 Zhao Xin, Gustavo Miranda. MIT License.",
     "license": "MIT",
     "icon": [

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use serde::Serialize;
-use status_core::holidays::HOLIDAY_NAME_KEYS;
+use creditbar_core::holidays::HOLIDAY_NAME_KEYS;
 
 const ENGLISH: &str = "en-US";
 
@@ -27,10 +27,10 @@ pub struct I18n {
 
 static CURRENT: OnceLock<I18n> = OnceLock::new();
 
-/// The table for the system language. `DEEPSEEK_STATUS_LANG` overrides it (for testing).
+/// The table for the system language. `CREDITBAR_LANG` overrides it (for testing).
 pub fn get() -> &'static I18n {
     CURRENT.get_or_init(|| {
-        let requested = std::env::var("DEEPSEEK_STATUS_LANG")
+        let requested = std::env::var("CREDITBAR_LANG")
             .ok()
             .or_else(sys_locale::get_locale)
             .unwrap_or_else(|| ENGLISH.to_owned());

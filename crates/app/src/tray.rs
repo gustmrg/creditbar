@@ -8,8 +8,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use status_core::pricing::{beijing, compact_countdown};
-use status_core::{PricePeriod, PricingSnapshot};
+use creditbar_core::pricing::{beijing, compact_countdown};
+use creditbar_core::{PricePeriod, PricingSnapshot};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -36,11 +36,8 @@ struct Shown {
     title: Option<String>,
 }
 
-fn icon(period: PricePeriod) -> Image<'static> {
-    match period {
-        PricePeriod::Peak => tauri::include_image!("icons/tray-peak.png"),
-        PricePeriod::OffPeak => tauri::include_image!("icons/tray-offpeak.png"),
-    }
+fn icon(_period: PricePeriod) -> Image<'static> {
+    tauri::include_image!("icons/tray.png")
 }
 
 impl Tray {
@@ -82,7 +79,7 @@ impl Tray {
 
         let icon = TrayIconBuilder::with_id("main")
             .icon(icon(PricePeriod::Peak))
-            .tooltip("DeepSeek Status")
+            .tooltip("CreditBar")
             .menu(&menu)
             .show_menu_on_left_click(false)
             .on_menu_event(move |app, event| match event.id().as_ref() {
@@ -175,7 +172,7 @@ fn update(app: &AppHandle) {
         // Windows has no tray title: the tooltip carries the next switch instead.
         let _ = tray
             .icon
-            .set_tooltip(Some(format!("DeepSeek Status — {}", shown.next_text)));
+            .set_tooltip(Some(format!("CreditBar — {}", shown.next_text)));
     }
     if last.as_ref().map_or(true, |l| l.title != shown.title) {
         let _ = tray.icon.set_title(shown.title.as_deref());

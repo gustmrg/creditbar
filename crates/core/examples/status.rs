@@ -1,10 +1,10 @@
 //! Prints the current pricing snapshot as JSON, and the DeepSeek balance when
 //! `DEEPSEEK_API_KEY` is set.
 //!
-//!     cargo run -p status-core --example status
+//!     cargo run -p creditbar-core --example status
 
 use chrono::Utc;
-use status_core::{pricing, providers, HolidaySchedule, PricingSnapshot};
+use creditbar_core::{pricing, providers, HolidaySchedule, PricingSnapshot};
 
 #[tokio::main]
 async fn main() {
@@ -19,7 +19,7 @@ async fn main() {
     if let Ok(key) = std::env::var("DEEPSEEK_API_KEY") {
         let provider = providers::by_id("deepseek").unwrap();
         let client = reqwest::Client::new();
-        match status_core::http::fetch_balance(&client, provider.as_ref(), &key).await {
+        match creditbar_core::http::fetch_balance(&client, provider.as_ref(), &key).await {
             Ok(balance) => println!("{}", serde_json::to_string_pretty(&balance).unwrap()),
             Err(error) => eprintln!("balance: {error}"),
         }

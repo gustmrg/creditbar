@@ -1,8 +1,12 @@
-# DeepSeek Status (Rust)
+# CreditBar
 
-Cross-platform port of [DeepSeek Status](https://github.com/owenzhao/DeepSeekStatus), the macOS
-menu bar app that shows whether DeepSeek is in peak or off-peak pricing and how much API balance
-is left — extended to support more balance providers.
+A tray app for macOS, Linux and Windows that shows how much API credit is left across your LLM
+providers — DeepSeek, Kimi and OpenRouter so far — and, for DeepSeek, whether it's in peak or
+off-peak pricing.
+
+CreditBar started as a cross-platform port of
+[DeepSeek Status](https://github.com/owenzhao/DeepSeekStatus) by Zhao Xin, the macOS menu bar app
+whose pricing schedule and holiday calendar logic it carries over.
 
 Status: **early**. Core logic plus a Tauri 2 tray shell with the panel. Tested on Linux
 (GNOME, X11); macOS and Windows build paths exist but are untested.
@@ -10,14 +14,14 @@ Status: **early**. Core logic plus a Tauri 2 tray shell with the panel. Tested o
 ## Layout
 
 ```
-crates/core/            # status-core: pure logic, no UI
+crates/core/            # creditbar-core: pure logic, no UI
   src/pricing.rs        # peak / off-peak rule (Beijing time), transitions, snapshot
   src/holidays.rs       # Apple holiday ICS parser + bundled 2026 fallback
   src/providers/        # BalanceProvider trait + DeepSeek, Kimi, OpenRouter
   src/http.rs           # performs a provider's request (feature `http`, on by default)
   tests/schedule.rs     # cases ported from the Swift app's self-check
   examples/status.rs    # prints the current snapshot (and balance with DEEPSEEK_API_KEY)
-crates/app/             # deepseek-status: Tauri 2 tray app
+crates/app/             # creditbar: Tauri 2 tray app
   src/tray.rs           # tray icon + menu, updated every second
   src/panel.rs          # panel window: placement under the tray icon, hide on blur
   src/balance.rs        # per-provider balance state, OS keyring for API keys
@@ -40,10 +44,10 @@ ui/                     # panel: plain HTML/CSS/JS, no bundler
 
 ```bash
 cargo test
-cargo run -p deepseek-status                       # the tray app
-DEEPSEEK_STATUS_OPEN_PANEL=1 cargo run -p deepseek-status   # ...with the panel open
-cargo run -p status-core --example status
-DEEPSEEK_API_KEY=sk-... cargo run -p status-core --example status
+cargo run -p creditbar                       # the tray app
+CREDITBAR_OPEN_PANEL=1 cargo run -p creditbar   # ...with the panel open
+cargo run -p creditbar-core --example status
+DEEPSEEK_API_KEY=sk-... cargo run -p creditbar-core --example status
 ```
 
 ## Installers
@@ -63,7 +67,7 @@ right-click → Open the first time, and Windows SmartScreen asks once.
 ## Languages
 
 English (en-US) and Brazilian Portuguese (pt-BR), picked from the system locale
-(`DEEPSEEK_STATUS_LANG=pt-BR` overrides it). The tables live in `crates/app/locales/*.json` and
+(`CREDITBAR_LANG=pt-BR` overrides it). The tables live in `crates/app/locales/*.json` and
 serve both the tray menu and the panel; a test checks every table has every English key.
 
 ## Providers

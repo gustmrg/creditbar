@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use status_core::holidays::{self, HolidaySchedule};
-use status_core::PricingSnapshot;
+use creditbar_core::holidays::{self, HolidaySchedule};
+use creditbar_core::PricingSnapshot;
 use tauri::{AppHandle, Manager};
 
 const CACHE_FILE: &str = "holiday-schedule.json";

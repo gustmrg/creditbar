@@ -1,6 +1,6 @@
 [package]
-name = "status-core"
-description = "Pricing schedule, holiday calendar and balance providers for DeepSeek Status"
+name = "creditbar-core"
+description = "Balance providers and DeepSeek pricing schedule for CreditBar"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

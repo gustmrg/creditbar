@@ -1,6 +1,6 @@
 [package]
-name = "deepseek-status"
-description = "Tray app: DeepSeek peak / off-peak pricing and API balances"
+name = "creditbar"
+description = "Tray app: API credit balances across LLM providers"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ rust-version.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-status-core = { path = "../core" }
+creditbar-core = { path = "../core" }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 chrono.workspace = true
 serde.workspace = true

@@ -1,4 +1,4 @@
-//! Platform-independent core of DeepSeek Status.
+//! Platform-independent core of CreditBar.
 //!
 //! - [`pricing`]: DeepSeek's peak / off-peak schedule (always evaluated in Beijing time).
 //! - [`holidays`]: the mainland China holiday calendar that makes whole days off-peak.
