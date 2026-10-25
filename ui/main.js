@@ -4,7 +4,7 @@ const { listen } = window.__TAURI__.event;
 const BEIJING = "Asia/Shanghai";
 
 /** Filled from the backend's `get_i18n` before the first render. */
-let i18n = { locale: "en", strings: {}, holidayKeys: {} };
+let i18n = { locale: "en-US", strings: {}, holidayKeys: {} };
 
 /** A UI string, with `{name}` placeholders replaced from `vars`. */
 function t(key, vars = {}) {

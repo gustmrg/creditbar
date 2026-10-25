@@ -48,7 +48,7 @@ DEEPSEEK_API_KEY=sk-... cargo run -p status-core --example status
 
 ## Languages
 
-English, Brazilian Portuguese and Simplified Chinese, picked from the system locale
+English (en-US) and Brazilian Portuguese (pt-BR), picked from the system locale
 (`DEEPSEEK_STATUS_LANG=pt-BR` overrides it). The tables live in `crates/app/locales/*.json` and
 serve both the tray menu and the panel; a test checks every table has every English key.
 

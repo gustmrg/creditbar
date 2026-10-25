@@ -7,13 +7,12 @@ use std::sync::OnceLock;
 use serde::Serialize;
 use status_core::holidays::HOLIDAY_NAME_KEYS;
 
-const ENGLISH: &str = "en";
+const ENGLISH: &str = "en-US";
 
 /// Language tag → table. Matching is by exact tag first, then by language.
-const LOCALES: [(&str, &str); 3] = [
-    (ENGLISH, include_str!("../locales/en.json")),
+const LOCALES: [(&str, &str); 2] = [
+    (ENGLISH, include_str!("../locales/en-US.json")),
     ("pt-BR", include_str!("../locales/pt-BR.json")),
-    ("zh-Hans", include_str!("../locales/zh-Hans.json")),
 ];
 
 #[derive(Serialize)]
@@ -50,7 +49,7 @@ pub fn tf(key: &str, args: &[(&str, &str)]) -> String {
     })
 }
 
-/// Picks a table for a system locale such as `pt_BR.UTF-8`, `zh-CN` or `en-US`.
+/// Picks a table for a system locale such as `pt_BR.UTF-8` or `en_GB`; anything else is English.
 fn resolve(requested: &str) -> &'static str {
     let tag = requested
         .split('.')
@@ -58,15 +57,6 @@ fn resolve(requested: &str) -> &'static str {
         .unwrap_or_default()
         .replace('_', "-");
     let lower = tag.to_ascii_lowercase();
-    // Simplified Chinese regions; Traditional (TW, HK, MO, Hant) has no table yet.
-    if matches!(lower.as_str(), "zh" | "zh-cn" | "zh-sg" | "zh-hans")
-        || lower.starts_with("zh-hans-")
-    {
-        return "zh-Hans";
-    }
-    if lower.starts_with("zh") {
-        return ENGLISH;
-    }
     let language = lower.split('-').next().unwrap_or_default();
     LOCALES
         .iter()
@@ -118,12 +108,11 @@ mod tests {
     fn resolves_system_locales() {
         assert_eq!(resolve("pt_BR.UTF-8"), "pt-BR");
         assert_eq!(resolve("pt-PT"), "pt-BR");
-        assert_eq!(resolve("zh_CN.UTF-8"), "zh-Hans");
-        assert_eq!(resolve("zh-Hans-CN"), "zh-Hans");
-        assert_eq!(resolve("zh-TW"), "en");
-        assert_eq!(resolve("en-US"), "en");
-        assert_eq!(resolve("de-DE"), "en");
-        assert_eq!(resolve("C"), "en");
+        assert_eq!(resolve("en-US"), "en-US");
+        assert_eq!(resolve("en_GB.UTF-8"), "en-US");
+        assert_eq!(resolve("zh_CN.UTF-8"), "en-US");
+        assert_eq!(resolve("de-DE"), "en-US");
+        assert_eq!(resolve("C"), "en-US");
     }
 
     #[test]
