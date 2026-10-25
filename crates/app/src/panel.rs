@@ -65,6 +65,7 @@ pub fn hide(app: &AppHandle) {
     if let Some(panel) = window(app).filter(|w| w.is_visible().unwrap_or(false)) {
         let _ = panel.hide();
         *app.state::<PanelState>().last_hidden.lock().unwrap() = Some(Instant::now());
+        let _ = app.emit_to(LABEL, "panel-hidden", ());
     }
 }
 

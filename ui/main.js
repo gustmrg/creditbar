@@ -108,6 +108,7 @@ async function reload() {
 function renderSnapshot() {
   const peak = snapshot.period === "peak";
   document.body.dataset.period = snapshot.period;
+  Aquarium.setPeriod(snapshot.period);
   $("period").textContent = periodName(snapshot.period);
   $("price").textContent = t(peak ? "price.peak" : "price.offPeak");
   $("multiplier").textContent = peak ? "×1.0" : "×0.5";
@@ -248,6 +249,7 @@ function renderProviders(views) {
   const slot = $("pricing-slot");
   if (slot) slot.append($("pricing"));
   tick();
+  Aquarium.wake();
 }
 
 function renderRow(view) {
@@ -559,7 +561,11 @@ listen("panel-shown", () => {
   // Opening the panel goes back to today.
   calendarCursor = null;
   reload();
+  Aquarium.wake();
 });
+// A hidden window may keep running timers; the aquarium stops until the panel opens again.
+listen("panel-hidden", () => Aquarium.sleep());
+document.addEventListener("visibilitychange", () => (document.hidden ? Aquarium.sleep() : Aquarium.wake()));
 
 $("quit").addEventListener("click", () => invoke("quit"));
 document.addEventListener("keydown", (e) => e.key === "Escape" && invoke("hide_panel"));
@@ -576,6 +582,7 @@ async function init() {
     console.error("couldn't load UI strings", error);
   }
   applyStaticStrings();
+  Aquarium.attach($("aquarium"));
   setInterval(tick, 1000);
   await reload();
 }

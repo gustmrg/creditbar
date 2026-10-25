@@ -272,6 +272,12 @@ footer {
   border-top: 1px solid var(--line);
 }
 
+.aquarium {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+}
+
 .hero {
   display: flex;
   align-items: center;
