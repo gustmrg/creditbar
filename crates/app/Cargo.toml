@@ -1,0 +1,20 @@
+[package]
+name = "deepseek-status"
+description = "Tray app: DeepSeek peak / off-peak pricing and API balances"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+status-core = { path = "../core" }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+tokio = { workspace = true, features = ["time"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }

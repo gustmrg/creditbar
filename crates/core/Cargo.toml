@@ -1,0 +1,22 @@
+[package]
+name = "status-core"
+description = "Pricing schedule, holiday calendar and balance providers for DeepSeek Status"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["http"]
+# Network access (balance requests). Without it the crate is pure logic.
+http = ["dep:reqwest"]
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+reqwest = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio.workspace = true

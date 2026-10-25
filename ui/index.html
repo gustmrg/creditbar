@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeepSeek Status</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <main>
+    <section class="hero" id="hero">
+      <div class="whale" aria-hidden="true"></div>
+      <div class="hero-text">
+        <h1 id="period">…</h1>
+        <p id="price"></p>
+      </div>
+      <span class="badge" id="multiplier"></span>
+    </section>
+
+    <section class="block">
+      <div class="label">Next switch</div>
+      <div class="countdown" id="countdown">--:--:--</div>
+      <div id="next" class="muted"></div>
+      <div class="progress"><div id="progress"></div></div>
+      <p id="day" class="muted small"></p>
+    </section>
+
+    <section class="block card" id="balances"></section>
+
+    <footer>
+      <span class="muted small">Times in Beijing (UTC+8)</span>
+      <button id="quit" class="link">Quit</button>
+    </footer>
+  </main>
+</body>
+</html>
