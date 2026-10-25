@@ -3,7 +3,9 @@
 
 use serde::Deserialize;
 
-use super::{check_status, Amount, Balance, BalanceError, BalanceProvider, BalanceRequest};
+use super::{
+    check_status, Amount, AmountKind, Balance, BalanceError, BalanceProvider, BalanceRequest,
+};
 
 pub const ENDPOINT: &str = "https://api.deepseek.com/user/balance";
 
@@ -53,6 +55,7 @@ impl BalanceProvider for DeepSeek {
                 .into_iter()
                 .map(|info| Amount {
                     currency: info.currency,
+                    kind: AmountKind::AccountBalance,
                     total: info.total_balance,
                     granted: Some(info.granted_balance),
                     topped_up: Some(info.topped_up_balance),
@@ -93,6 +96,7 @@ mod tests {
             balance.amounts,
             vec![Amount {
                 currency: "CNY".into(),
+                kind: AmountKind::AccountBalance,
                 total: "110.00".into(),
                 granted: Some("10.00".into()),
                 topped_up: Some("100.00".into()),

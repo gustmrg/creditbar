@@ -12,6 +12,13 @@ const HOLIDAYS = {
   国庆节: "National Day",
 };
 
+/** What a balance figure measures (see `AmountKind` in the core). */
+const AMOUNT_KINDS = {
+  accountBalance: "Account balance",
+  keyLimitRemaining: "Left on this key’s limit",
+  keySpent: "Spent with this key (no limit set)",
+};
+
 let snapshot = null;
 let reloading = false;
 /** Providers whose API key editor is open. */
@@ -108,15 +115,16 @@ function renderBalances(balances) {
 
 function renderProvider(view) {
   const id = view.providerId;
-  const isEditing = editing.has(id) || !view.hasKey;
+  const isEditing = editing.has(id);
 
-  const refresh = view.hasKey
+  // Without a key the header only offers to add one; the editor opens on demand.
+  const action = view.hasKey
     ? el("button", {
         textContent: view.refreshing ? "Refreshing…" : "Refresh",
         disabled: view.refreshing,
         onclick: () => invoke("refresh_balance", { providerId: id }),
       })
-    : null;
+    : !isEditing && el("button", { className: "link small", textContent: "Add API key", onclick: () => edit(id, true) });
   const updated = view.lastRefreshed
     ? el("span", { className: "muted small" }, localTime(view.lastRefreshed))
     : null;
@@ -126,25 +134,32 @@ function renderProvider(view) {
       "div",
       {},
       el("div", { className: "amount" }, formatAmount(a.currency, a.total)),
-      a.granted != null &&
-        el(
-          "div",
-          { className: "muted small" },
-          `Granted ${formatAmount(a.currency, a.granted)} · topped up ${formatAmount(a.currency, a.toppedUp)}`,
-        ),
+      el(
+        "div",
+        { className: "muted small" },
+        [
+          AMOUNT_KINDS[a.kind],
+          a.granted != null && `promo ${formatAmount(a.currency, a.granted)}`,
+          a.toppedUp != null && `paid ${formatAmount(a.currency, a.toppedUp)}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      ),
     ),
   );
 
   return el(
     "div",
     { className: "provider" },
-    el("div", { className: "provider-head" }, el("span", { className: "name" }, view.displayName), updated, refresh),
+    el("div", { className: "provider-head" }, el("span", { className: "name" }, view.displayName), updated, action),
     ...amounts,
     view.balance && !view.balance.isAvailable && el("p", { className: "error small" }, "Not enough balance for API calls."),
     view.error && el("p", { className: "error small" }, view.error),
-    !view.hasKey && el("p", { className: "muted small" }, "No API key saved, so no balance is requested."),
-    isEditing ? keyEditor(view) : el("button", { className: "link small", onclick: () => edit(id, true) },
-      view.suggestsReplacingKey ? "Replace API key" : "Change API key"),
+    isEditing
+      ? keyEditor(view)
+      : view.hasKey &&
+          el("button", { className: "link small", onclick: () => edit(id, true) },
+            view.suggestsReplacingKey ? "Replace API key" : "Change API key"),
   );
 }
 
@@ -161,6 +176,7 @@ function keyEditor(view) {
     }
   };
   input.addEventListener("keydown", (e) => e.key === "Enter" && save());
+  queueMicrotask(() => input.focus());
 
   return el(
     "div",
@@ -171,17 +187,17 @@ function keyEditor(view) {
       input,
       el("button", { className: "primary", textContent: "Save", onclick: save }),
     ),
-    view.hasKey &&
-      el(
-        "div",
-        { className: "row" },
-        el("button", { className: "link small", textContent: "Cancel", onclick: () => edit(id, false) }),
+    el(
+      "div",
+      { className: "row" },
+      el("button", { className: "link small", textContent: "Cancel", onclick: () => edit(id, false) }),
+      view.hasKey &&
         el("button", {
           className: "link small error",
           textContent: "Remove key",
           onclick: () => invoke("remove_api_key", { providerId: id }).then(() => editing.delete(id)),
         }),
-      ),
+    ),
     message,
   );
 }

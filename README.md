@@ -13,7 +13,7 @@ Status: **early**. Core logic plus a Tauri 2 tray shell with the panel. Tested o
 crates/core/            # status-core: pure logic, no UI
   src/pricing.rs        # peak / off-peak rule (Beijing time), transitions, snapshot
   src/holidays.rs       # Apple holiday ICS parser + bundled 2026 fallback
-  src/providers/        # BalanceProvider trait + DeepSeek
+  src/providers/        # BalanceProvider trait + DeepSeek, Kimi, OpenRouter
   src/http.rs           # performs a provider's request (feature `http`, on by default)
   tests/schedule.rs     # cases ported from the Swift app's self-check
   examples/status.rs    # prints the current snapshot (and balance with DEEPSEEK_API_KEY)
@@ -45,6 +45,14 @@ DEEPSEEK_STATUS_OPEN_PANEL=1 cargo run -p deepseek-status   # ...with the panel 
 cargo run -p status-core --example status
 DEEPSEEK_API_KEY=sk-... cargo run -p status-core --example status
 ```
+
+## Providers
+
+| Provider | Endpoint | What the panel shows |
+| --- | --- | --- |
+| DeepSeek | `GET api.deepseek.com/user/balance` | Account balance (CNY or USD), promo and paid parts |
+| Kimi (Moonshot) | `GET api.moonshot.ai/v1/users/me/balance` | Account balance in USD, voucher and cash parts. International platform keys only; api.moonshot.cn keys are separate |
+| OpenRouter | `GET openrouter.ai/api/v1/key` | What is left of the key's own limit, or what the key has spent if it has no limit. The account balance needs a management key, which this app deliberately doesn't ask for |
 
 ## Adding a provider
 
