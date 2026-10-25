@@ -1,11 +1,12 @@
-//! Balance state per provider. API keys live in the OS keyring (Keychain, Credential Manager,
-//! Secret Service) and never reach the panel; it only learns whether a key exists.
+//! State per provider: key, latest snapshot, refresh. API keys live in the OS keyring
+//! (Keychain, Credential Manager, Secret Service) and never reach the panel; it only learns
+//! whether a key exists.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use creditbar_core::providers::{self, Balance, BalanceError, BalanceProvider};
+use creditbar_core::providers::{self, FetchError, Provider, ProviderInfo, ProviderSnapshot};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -13,27 +14,28 @@ use crate::i18n::{t, tf};
 
 const KEYRING_SERVICE: &str = "dev.gustmrg.creditbar";
 const REFRESH_INTERVAL: Duration = Duration::from_secs(5 * 60);
+/// A quota this far used turns the tray icon amber.
+const ATTENTION_USED_PERCENT: f64 = 90.0;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BalanceView {
-    pub provider_id: &'static str,
-    pub display_name: &'static str,
+pub struct ProviderView {
+    pub info: ProviderInfo,
     pub has_key: bool,
     pub refreshing: bool,
-    /// The last successful balance; kept while refreshing or after a failure.
-    pub balance: Option<Balance>,
+    /// The last successful snapshot; kept while refreshing or after a failure.
+    pub snapshot: Option<ProviderSnapshot>,
     pub error: Option<String>,
     pub suggests_replacing_key: bool,
     pub last_refreshed: Option<DateTime<Utc>>,
 }
 
 struct Slot {
-    provider: Arc<dyn BalanceProvider>,
+    provider: Arc<dyn Provider>,
     key: Option<String>,
     /// Bumped by every request and key change; a response from an older generation is dropped.
     generation: u64,
-    view: BalanceView,
+    view: ProviderView,
 }
 
 pub struct Balances {
@@ -46,13 +48,12 @@ impl Balances {
         let slots = providers::all()
             .into_iter()
             .map(|provider| {
-                let provider: Arc<dyn BalanceProvider> = Arc::from(provider);
-                let view = BalanceView {
-                    provider_id: provider.id(),
-                    display_name: provider.display_name(),
+                let provider: Arc<dyn Provider> = Arc::from(provider);
+                let view = ProviderView {
+                    info: *provider.info(),
                     has_key: false,
                     refreshing: false,
-                    balance: None,
+                    snapshot: None,
                     error: None,
                     suggests_replacing_key: false,
                     last_refreshed: None,
@@ -71,16 +72,23 @@ impl Balances {
         }
     }
 
-    /// A saved key whose last refresh failed, or an account that can't make API calls.
+    /// A saved key whose last refresh failed, an account that can't make API calls, or a quota
+    /// nearly used up.
     pub fn needs_attention(&self) -> bool {
         self.slots.lock().unwrap().iter().any(|s| {
             s.view.has_key
                 && (s.view.error.is_some()
-                    || s.view.balance.as_ref().is_some_and(|b| !b.is_available))
+                    || s.view.snapshot.as_ref().is_some_and(|snapshot| {
+                        !snapshot.can_make_calls
+                            || snapshot
+                                .windows
+                                .iter()
+                                .any(|w| w.used_percent >= ATTENTION_USED_PERCENT)
+                    }))
         })
     }
 
-    pub fn views(&self) -> Vec<BalanceView> {
+    pub fn views(&self) -> Vec<ProviderView> {
         self.slots
             .lock()
             .unwrap()
@@ -94,7 +102,7 @@ impl Balances {
             .lock()
             .unwrap()
             .iter_mut()
-            .find(|s| s.provider.id() == id)
+            .find(|s| s.provider.info().id == id)
             .map(f)
     }
 
@@ -103,13 +111,13 @@ impl Balances {
             .lock()
             .unwrap()
             .iter()
-            .map(|s| s.provider.id())
+            .map(|s| s.provider.info().id)
             .collect()
     }
 }
 
 fn emit(app: &AppHandle) {
-    let _ = app.emit("balances", app.state::<Balances>().views());
+    let _ = app.emit("providers", app.state::<Balances>().views());
 }
 
 fn keyring_entry(provider_id: &str) -> Result<keyring::Entry, String> {
@@ -158,11 +166,11 @@ pub fn refresh_if_stale(app: &AppHandle) {
             .filter(|s| {
                 s.view.has_key
                     && !s.view.refreshing
-                    && s.view.last_refreshed.map_or(true, |at| {
+                    && s.view.last_refreshed.is_none_or(|at| {
                         (Utc::now() - at).to_std().unwrap_or_default() >= REFRESH_INTERVAL
                     })
             })
-            .map(|s| s.provider.id())
+            .map(|s| s.provider.info().id)
             .collect();
         slots
     };
@@ -171,18 +179,18 @@ pub fn refresh_if_stale(app: &AppHandle) {
     }
 }
 
-fn error_text(error: &BalanceError, provider: &str) -> String {
+fn error_text(error: &FetchError, provider: &str) -> String {
     match error {
-        BalanceError::Unauthorized => t("error.unauthorized"),
-        BalanceError::Http { status } => tf(
+        FetchError::Unauthorized => t("error.unauthorized"),
+        FetchError::Http { status } => tf(
             "error.http",
             &[("provider", provider), ("status", &status.to_string())],
         ),
-        BalanceError::Network(detail) => tf(
+        FetchError::Network(detail) => tf(
             "error.network",
             &[("provider", provider), ("detail", detail)],
         ),
-        BalanceError::Decoding => tf("error.decoding", &[("provider", provider)]),
+        FetchError::Decoding => tf("error.decoding", &[("provider", provider)]),
     }
 }
 
@@ -203,7 +211,7 @@ pub async fn refresh(app: AppHandle, provider_id: String, force: bool) {
     };
     emit(&app);
 
-    let result = creditbar_core::http::fetch_balance(&balances.http, provider.as_ref(), &key).await;
+    let result = provider.fetch(&balances.http, &key, Utc::now()).await;
 
     let current = balances.with_slot(&provider_id, |slot| {
         if slot.generation != generation {
@@ -211,15 +219,15 @@ pub async fn refresh(app: AppHandle, provider_id: String, force: bool) {
         }
         slot.view.refreshing = false;
         match result {
-            Ok(balance) => {
-                slot.view.balance = Some(balance);
+            Ok(snapshot) => {
+                slot.view.snapshot = Some(snapshot);
                 slot.view.error = None;
                 slot.view.suggests_replacing_key = false;
                 slot.view.last_refreshed = Some(Utc::now());
             }
             Err(error) => {
                 slot.view.suggests_replacing_key = error.suggests_replacing_key();
-                slot.view.error = Some(error_text(&error, provider.display_name()));
+                slot.view.error = Some(error_text(&error, provider.info().name));
             }
         }
         true
@@ -247,7 +255,7 @@ pub async fn save_key(app: AppHandle, provider_id: String, key: String) -> Resul
     app.state::<Balances>().with_slot(&provider_id, |slot| {
         slot.key = Some(key);
         slot.view.has_key = true;
-        slot.view.balance = None;
+        slot.view.snapshot = None;
         slot.view.error = None;
         slot.view.last_refreshed = None;
     });
@@ -269,7 +277,7 @@ pub async fn remove_key(app: AppHandle, provider_id: String) -> Result<(), Strin
         slot.generation += 1;
         slot.view.has_key = false;
         slot.view.refreshing = false;
-        slot.view.balance = None;
+        slot.view.snapshot = None;
         slot.view.error = None;
         slot.view.suggests_replacing_key = false;
         slot.view.last_refreshed = None;

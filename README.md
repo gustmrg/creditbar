@@ -17,8 +17,8 @@ Status: **early**. Core logic plus a Tauri 2 tray shell with the panel. Tested o
 crates/core/            # creditbar-core: pure logic, no UI
   src/pricing.rs        # peak / off-peak rule (Beijing time), transitions, snapshot
   src/holidays.rs       # Apple holiday ICS parser + bundled 2026 fallback
-  src/providers/        # BalanceProvider trait + DeepSeek, Kimi, OpenRouter
-  src/http.rs           # performs a provider's request (feature `http`, on by default)
+  src/providers/        # Provider trait, ProviderSnapshot + DeepSeek, Kimi, OpenRouter
+  src/http.rs           # HttpClient over reqwest (feature `http`, on by default)
   tests/schedule.rs     # cases ported from the Swift app's self-check
   examples/status.rs    # prints the current snapshot (and balance with DEEPSEEK_API_KEY)
 crates/app/             # creditbar: Tauri 2 tray app
@@ -29,13 +29,12 @@ crates/app/             # creditbar: Tauri 2 tray app
 ui/                     # panel: plain HTML/CSS/JS, no bundler
 ```
 
-## The panel and the tray
+## The tray
 
-- The panel lists every provider's balance; a provider without a key only offers **Add API key**.
-- **DeepSeek pricing** (period, countdown, monthly calendar, weekly grid) is a section of its
-  own, toggled from the tray menu (**Show DeepSeek Peak Hours**, on by default).
 - The tray icon is a credit bar. It turns amber when a provider with a saved key failed to
-  refresh or reports that its account can't make API calls.
+  refresh, reports that its account can't make API calls, or has a quota 90% used.
+- **Show DeepSeek Peak Hours** (on by default) adds the period, next switch and optional
+  countdown to the tray menu.
 
 ## Platform notes
 
@@ -81,16 +80,30 @@ serve both the tray menu and the panel; a test checks every table has every Engl
 
 ## Providers
 
-| Provider | Endpoint | What the panel shows |
+| Provider | Endpoints | What the card shows |
 | --- | --- | --- |
-| DeepSeek | `GET api.deepseek.com/user/balance` | Account balance (CNY or USD), promo and paid parts |
-| Kimi (Moonshot) | `GET api.moonshot.ai/v1/users/me/balance` | Account balance in USD, voucher and cash parts. International platform keys only; api.moonshot.cn keys are separate |
-| OpenRouter | `GET openrouter.ai/api/v1/key` | What is left of the key's own limit, or what the key has spent if it has no limit. The account balance needs a management key, which this app deliberately doesn't ask for |
+| DeepSeek | `GET api.deepseek.com/user/balance` | Account balance (USD first, then CNY) split into paid and promo; DeepSeek pricing section |
+| Kimi (Moonshot) | `GET api.moonshot.ai/v1/users/me/balance` | Account balance in USD split into paid and voucher; what the account owes. International platform keys only; api.moonshot.cn keys are separate |
+| OpenRouter | `GET openrouter.ai/api/v1/key` and `/credits` | Account balance; the key's own spending limit as a meter with its reset; spend today, this week, this month and in total. `/credits` is documented as management-key only but answers regular keys; if it refuses, the card says so and shows the key's figures |
+
+## The panel
+
+Modelled on [CodexBar](https://github.com/steipete/CodexBar): every provider returns the same
+`ProviderSnapshot` (balances, quota windows, details, notes), and the panel renders it with one
+generic card, so adding a provider needs no UI code.
+
+- One row per provider with a key: name, headline figure, a one-line summary and the quota
+  meter. Clicking a row opens its card; the choice is remembered.
+- Providers without a key sit under **Add a provider**.
+- DeepSeek's pricing (period, countdown, calendar, weekly grid) lives inside the DeepSeek card;
+  the DeepSeek row stays listed for it even without a key while **Show DeepSeek Peak Hours** is on.
 
 ## Adding a provider
 
-1. Add `crates/core/src/providers/<name>.rs` implementing `BalanceProvider`:
-   `balance_request` describes the GET, `parse_balance` turns status + body into a `Balance`
-   (use `check_status` for the usual 200 / 401 / 403 handling).
+1. Add `crates/core/src/providers/<name>.rs` implementing `Provider`: a static `ProviderInfo`
+   (id, name, dashboard and key URLs, colour) and `fetch`, which turns an API key into a
+   `ProviderSnapshot` through the given `HttpClient` (`get_ok` handles 200 / 401 / 403).
 2. Register it in `providers::all()`.
-3. Unit-test `parse_balance` against a captured response; no network needed.
+3. Test `fetch` with `testing::FakeHttp` and captured responses; no network needed.
+4. If the snapshot uses a new kind (`BalancePart`, `WindowKind`, `DetailKind`, `Note`), add its
+   string to both tables in `crates/app/locales/`.

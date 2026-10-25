@@ -1,5 +1,6 @@
-//! Prints the current pricing snapshot as JSON, and the DeepSeek balance when
-//! `DEEPSEEK_API_KEY` is set.
+//! Prints the current DeepSeek pricing snapshot as JSON, and each provider's snapshot for which
+//! an API key is set in the environment: `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`,
+//! `OPENROUTER_API_KEY`.
 //!
 //!     cargo run -p creditbar-core --example status
 
@@ -16,12 +17,19 @@ async fn main() {
         pricing::compact_countdown(snapshot.seconds_until_transition())
     );
 
-    if let Ok(key) = std::env::var("DEEPSEEK_API_KEY") {
-        let provider = providers::by_id("deepseek").unwrap();
-        let client = reqwest::Client::new();
-        match creditbar_core::http::fetch_balance(&client, provider.as_ref(), &key).await {
-            Ok(balance) => println!("{}", serde_json::to_string_pretty(&balance).unwrap()),
-            Err(error) => eprintln!("balance: {error}"),
+    let client = reqwest::Client::new();
+    for provider in providers::all() {
+        let variable = format!("{}_API_KEY", provider.info().id.to_uppercase());
+        let Ok(key) = std::env::var(&variable) else {
+            continue;
+        };
+        match provider.fetch(&client, &key, Utc::now()).await {
+            Ok(snapshot) => println!(
+                "{}: {}",
+                provider.info().name,
+                serde_json::to_string_pretty(&snapshot).unwrap()
+            ),
+            Err(error) => eprintln!("{}: {error}", provider.info().name),
         }
     }
 }

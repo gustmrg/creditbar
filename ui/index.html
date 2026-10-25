@@ -9,19 +9,27 @@
 </head>
 <body>
   <main>
-    <section class="block card" id="balances"></section>
+    <!-- One row per configured provider; the selected one expands into its card. -->
+    <section class="card overview" id="overview"></section>
 
-    <!-- DeepSeek's time-of-day pricing; hidden from the tray menu when not wanted. -->
-    <section class="deepseek" id="deepseek">
-      <div class="section-head">
-        <div class="whale" aria-hidden="true"></div>
-        <span class="label" data-i18n="panel.deepseekPricing"></span>
-      </div>
+    <!-- Providers without a key. -->
+    <section class="add" id="add-providers"></section>
 
+    <footer>
+      <span class="brand">CreditBar</span>
+      <button id="quit" class="link" data-i18n="panel.quit"></button>
+    </footer>
+  </main>
+
+  <!-- DeepSeek's time-of-day pricing waits here and moves into the DeepSeek card when it
+       opens; moving (not rebuilding) keeps the calendar's tab and month. -->
+  <div id="parking" hidden>
+    <section class="pricing" id="pricing">
+      <div class="label" data-i18n="panel.deepseekPricing"></div>
       <div class="hero">
         <div class="hero-text">
-          <h1 id="period">…</h1>
-          <p id="price"></p>
+          <h2 id="period">…</h2>
+          <p id="price" class="muted small"></p>
         </div>
         <span class="badge" id="multiplier"></span>
       </div>
@@ -53,11 +61,6 @@
         <p class="muted small" data-i18n="panel.beijingNote"></p>
       </div>
     </section>
-
-    <footer>
-      <span class="brand">CreditBar</span>
-      <button id="quit" class="link" data-i18n="panel.quit"></button>
-    </footer>
-  </main>
+  </div>
 </body>
 </html>

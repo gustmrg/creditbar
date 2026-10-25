@@ -21,21 +21,45 @@ function applyStaticStrings() {
 }
 
 let snapshot = null;
+let settings = { showsDeepseekPricing: true };
+let providers = [];
 let reloading = false;
 /** Providers whose API key editor is open. */
 const editing = new Set();
-let lastBalances = [];
+/** The provider whose card is open, or null. Remembered per viewer. */
+let expanded = loadExpanded();
 /** Calendar view and the Beijing date (`YYYY-MM-DD`) it is centred on. */
 let calendarView = "month";
 let calendarCursor = null;
+
+const DEEPSEEK = "deepseek";
+/** A quota this far used is drawn as a warning (matches the tray's threshold). */
+const WARN_PERCENT = 90;
 
 const $ = (id) => document.getElementById(id);
 
 /** Builds an element; strings become text nodes, so nothing is parsed as HTML. */
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
-  node.append(...children.filter((c) => c != null && c !== false));
+  node.append(...children.flat(Infinity).filter((c) => c != null && c !== false));
   return node;
+}
+
+function loadExpanded() {
+  try {
+    return localStorage.getItem("expanded");
+  } catch {
+    return null;
+  }
+}
+
+function saveExpanded() {
+  try {
+    if (expanded) localStorage.setItem("expanded", expanded);
+    else localStorage.removeItem("expanded");
+  } catch {
+    // Storage may be unavailable; the choice just won't survive a restart.
+  }
 }
 
 const beijingTime = (iso) =>
@@ -49,6 +73,20 @@ const beijingTime = (iso) =>
 const localTime = (iso) => new Date(iso).toLocaleTimeString(i18n.locale, { hour: "2-digit", minute: "2-digit" });
 
 const periodName = (period) => t(period === "peak" ? "period.peak" : "period.offPeak");
+const periodShort = (period) => t(period === "peak" ? "period.peakShort" : "period.offPeakShort");
+
+const pad = (n) => String(n).padStart(2, "0");
+const clock = (seconds) => `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
+
+/** "45m", "5h 20m", "3d 4h". */
+function shortDuration(ms) {
+  const minutes = Math.max(1, Math.ceil(ms / 60000));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${pad(minutes % 60)}m`;
+  return `${minutes}m`;
+}
 
 async function reload() {
   if (reloading) return;
@@ -56,18 +94,16 @@ async function reload() {
   try {
     const state = await invoke("get_state");
     snapshot = state.snapshot;
-    applySettings(state.settings);
+    settings = state.settings;
     renderSnapshot();
-    renderBalances(state.balances);
+    renderProviders(state.providers);
     await loadCalendar();
   } finally {
     reloading = false;
   }
 }
 
-function applySettings(settings) {
-  $("deepseek").hidden = !settings.showsDeepseekPricing;
-}
+// DeepSeek pricing
 
 function renderSnapshot() {
   const peak = snapshot.period === "peak";
@@ -100,92 +136,272 @@ function dayText({ kind, scheduleIsCovered }) {
   return scheduleIsCovered ? text : t("day.notCovered", { text });
 }
 
+/** "Off-peak ×0.5 · 03:12:44" for the DeepSeek row. */
+function pricingBadge(seconds) {
+  const multiplier = snapshot.period === "peak" ? "×1.0" : "×0.5";
+  return `${periodShort(snapshot.period)} ${multiplier} · ${clock(seconds)}`;
+}
+
 function tick() {
   if (!snapshot) return;
   const now = Date.now();
   const next = Date.parse(snapshot.nextTransition);
   const start = Date.parse(snapshot.intervalStart);
   const seconds = Math.max(0, Math.floor((next - now) / 1000));
-  const pad = (n) => String(n).padStart(2, "0");
-  $("countdown").textContent =
-    `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
+  $("countdown").textContent = clock(seconds);
   $("progress").style.width = `${Math.min(100, Math.max(0, ((now - start) / (next - start)) * 100))}%`;
+  const badge = $("pricing-badge");
+  if (badge) badge.textContent = pricingBadge(seconds);
   if (seconds === 0) reload();
 }
 
-function formatAmount(currency, value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return `${value} ${currency}`;
+// Providers
+
+function formatMoney(money) {
+  const number = Number(money.amount);
+  if (!Number.isFinite(number)) return `${money.amount} ${money.currency}`;
   try {
-    return new Intl.NumberFormat(i18n.locale, { style: "currency", currency }).format(number);
+    return new Intl.NumberFormat(i18n.locale, { style: "currency", currency: money.currency }).format(number);
   } catch {
-    return `${value} ${currency}`;
+    return `${money.amount} ${money.currency}`;
   }
 }
 
-function renderBalances(balances) {
-  lastBalances = balances;
-  $("balances").replaceChildren(el("div", { className: "label" }, t("balance.title")), ...balances.map(renderProvider));
+const remaining = (window) => ({
+  currency: window.limit.currency,
+  amount: String(Math.max(0, Number(window.limit.amount) - Number(window.used.amount))),
+});
+
+const showsPricing = (view) => view.info.id === DEEPSEEK && settings.showsDeepseekPricing;
+
+/** Rows: providers with a key, plus DeepSeek while its pricing is shown. */
+const inOverview = (view) => view.hasKey || showsPricing(view);
+
+const needsAttention = (view) =>
+  view.hasKey &&
+  (view.error != null ||
+    (view.snapshot != null &&
+      (!view.snapshot.canMakeCalls || view.snapshot.windows.some((w) => w.usedPercent >= WARN_PERCENT))));
+
+function noteText(note) {
+  return t(`note.${note.kind}`, note.amount ? { amount: formatMoney(note.amount) } : {});
 }
 
-function renderProvider(view) {
-  const id = view.providerId;
-  const isEditing = editing.has(id);
+const isWarning = (note) => note.kind === "cannotMakeCalls" || note.kind === "deficit";
 
-  // Without a key the header only offers to add one; the editor opens on demand.
-  const action = view.hasKey
-    ? el("button", {
-        textContent: t(view.refreshing ? "balance.refreshing" : "balance.refresh"),
-        disabled: view.refreshing,
-        onclick: () => invoke("refresh_balance", { providerId: id }),
-      })
-    : !isEditing && el("button", { className: "link small", textContent: t("balance.addKey"), onclick: () => edit(id, true) });
-  const updated = view.lastRefreshed
-    ? el("span", { className: "muted small" }, localTime(view.lastRefreshed))
-    : null;
+function windowTitle(window) {
+  const title = t(`window.${window.kind}`);
+  return window.reset ? `${title} · ${t(`window.period.${window.reset}`)}` : title;
+}
 
-  const amounts = (view.balance?.amounts ?? []).map((a) =>
+function windowStatus(window) {
+  const used = t("window.percentUsed", { percent: Math.round(window.usedPercent) });
+  if (!window.resetsAt) return used;
+  const duration = shortDuration(Date.parse(window.resetsAt) - Date.now());
+  return `${used} · ${t("window.resetsIn", { duration })}`;
+}
+
+function meter(percent) {
+  const fill = el("div", { className: percent >= WARN_PERCENT ? "warn" : "" });
+  fill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+  return el("div", { className: "meter" }, fill);
+}
+
+/** The headline figure: account balance, else what's left of a quota, else spend. */
+function headline(snap) {
+  if (!snap) return "—";
+  if (snap.balances.length) return formatMoney(snap.balances[0].total);
+  if (snap.windows.length) return formatMoney(remaining(snap.windows[0]));
+  const spent = snap.details.find((d) => d.kind === "spentWithKey");
+  return spent ? formatMoney(spent.value) : "—";
+}
+
+function partsText(balance) {
+  return balance.parts.map(([part, money]) => `${t(`part.${part}`)} ${formatMoney(money)}`).join(" · ");
+}
+
+/** The single line under a row's name. */
+function summary(view) {
+  if (view.error) return el("span", { className: "error" }, view.error);
+  if (showsPricing(view)) return el("span", { id: "pricing-badge" }, snapshot ? pricingBadge(0) : "");
+  const snap = view.snapshot;
+  if (!snap) return view.refreshing ? t("balance.refreshing") : "";
+  const warning = snap.notes.find(isWarning);
+  if (warning) return el("span", { className: "error" }, noteText(warning));
+  if (snap.windows.length) return `${windowTitle(snap.windows[0])} · ${windowStatus(snap.windows[0])}`;
+  if (snap.balances.length && snap.balances[0].parts.length) return partsText(snap.balances[0]);
+  return snap.notes.length ? noteText(snap.notes[0]) : "";
+}
+
+function renderProviders(views) {
+  providers = views;
+  const rows = views.filter(inOverview);
+  if (!rows.some((v) => v.info.id === expanded)) expanded = rows.length === 1 ? rows[0].info.id : null;
+
+  // Park the pricing section before the cards that may hold it are replaced.
+  $("parking").append($("pricing"));
+
+  $("overview").hidden = rows.length === 0;
+  $("overview").replaceChildren(...rows.map(renderRow));
+  renderAddProviders(views.filter((v) => !inOverview(v)), rows.length === 0);
+
+  const slot = $("pricing-slot");
+  if (slot) slot.append($("pricing"));
+  tick();
+}
+
+function renderRow(view) {
+  const id = view.info.id;
+  const open = expanded === id;
+  const marker = el("span", { className: `marker${needsAttention(view) ? " attention" : ""}` });
+  marker.style.background = view.info.color;
+  const firstWindow = view.snapshot?.windows[0];
+
+  const head = el(
+    "button",
+    {
+      className: "provider-row",
+      ariaExpanded: String(open),
+      onclick: () => {
+        expanded = open ? null : id;
+        saveExpanded();
+        renderProviders(providers);
+      },
+    },
+    marker,
+    el(
+      "span",
+      { className: "row-text" },
+      el("span", { className: "row-name" }, view.info.name),
+      el("span", { className: "row-summary muted small" }, summary(view)),
+      firstWindow && meter(firstWindow.usedPercent),
+    ),
+    el("span", { className: "row-value" }, headline(view.snapshot)),
+    el("span", { className: "chevron", ariaHidden: "true" }, open ? "▾" : "▸"),
+  );
+  return el("div", { className: "provider" }, head, open && renderCard(view));
+}
+
+function renderCard(view) {
+  const id = view.info.id;
+  const snap = view.snapshot;
+
+  const balances = (snap?.balances ?? []).map((balance) =>
     el(
       "div",
-      {},
-      el("div", { className: "amount" }, formatAmount(a.currency, a.total)),
-      el(
-        "div",
-        { className: "muted small" },
-        [
-          t(`amount.${a.kind}`),
-          a.granted != null && t("balance.promo", { amount: formatAmount(a.currency, a.granted) }),
-          a.toppedUp != null && t("balance.paid", { amount: formatAmount(a.currency, a.toppedUp) }),
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      ),
+      { className: "balance" },
+      el("div", { className: "label" }, t("balance.account")),
+      el("div", { className: "amount" }, formatMoney(balance.total)),
+      balance.parts.length > 0 && el("div", { className: "muted small" }, partsText(balance)),
     ),
   );
 
+  const windows = (snap?.windows ?? []).map((window) =>
+    el(
+      "div",
+      { className: "window" },
+      el(
+        "div",
+        { className: "window-head" },
+        el("span", {}, windowTitle(window)),
+        el("span", { className: "muted" }, t("window.usedOf", { used: formatMoney(window.used), limit: formatMoney(window.limit) })),
+      ),
+      meter(window.usedPercent),
+      el("div", { className: "muted small" }, windowStatus(window)),
+    ),
+  );
+
+  const details =
+    snap?.details.length > 0 &&
+    el(
+      "dl",
+      { className: "details" },
+      snap.details.map((detail) => [el("dt", {}, t(`detail.${detail.kind}`)), el("dd", {}, formatMoney(detail.value))]),
+    );
+
+  const notes = (snap?.notes ?? []).map((note) =>
+    el("p", { className: `note small ${isWarning(note) ? "error" : "muted"}` }, noteText(note)),
+  );
+
+  const actions = el(
+    "div",
+    { className: "actions" },
+    view.hasKey &&
+      el("button", {
+        textContent: t(view.refreshing ? "balance.refreshing" : "balance.refresh"),
+        disabled: view.refreshing,
+        onclick: () => invoke("refresh_balance", { providerId: id }),
+      }),
+    view.lastRefreshed && el("span", { className: "muted small" }, t("provider.updated", { time: localTime(view.lastRefreshed) })),
+    el("span", { className: "spacer" }),
+    el("button", {
+      className: "link small",
+      textContent: t("provider.openDashboard"),
+      onclick: () => invoke("open_provider_page", { providerId: id, page: "dashboard" }),
+    }),
+  );
+
+  const keyAction = editing.has(id)
+    ? keyEditor(view)
+    : el("button", {
+        className: "link small",
+        textContent: t(!view.hasKey ? "balance.addKey" : view.suggestsReplacingKey ? "balance.replaceKey" : "balance.changeKey"),
+        onclick: () => edit(id, true),
+      });
+
   return el(
     "div",
-    { className: "provider" },
-    el("div", { className: "provider-head" }, el("span", { className: "name" }, view.displayName), updated, action),
-    ...amounts,
-    view.balance && !view.balance.isAvailable && el("p", { className: "error small" }, t("balance.unavailable")),
+    { className: "provider-card" },
+    balances,
+    windows,
+    details,
+    notes,
     view.error && el("p", { className: "error small" }, view.error),
-    isEditing
-      ? keyEditor(view)
-      : view.hasKey &&
-          el("button", { className: "link small", onclick: () => edit(id, true) },
-            t(view.suggestsReplacingKey ? "balance.replaceKey" : "balance.changeKey")),
+    showsPricing(view) && el("div", { id: "pricing-slot" }),
+    actions,
+    keyAction,
   );
 }
 
+function renderAddProviders(views, overviewEmpty) {
+  const section = $("add-providers");
+  section.hidden = views.length === 0;
+  const children = [
+    overviewEmpty && el("p", { className: "muted" }, t("overview.empty")),
+    views.length > 0 && el("div", { className: "label" }, t("overview.add")),
+    ...views.map((view) =>
+      el(
+        "div",
+        { className: "add-item" },
+        el(
+          "div",
+          { className: "add-head" },
+          el("span", { className: "row-name" }, view.info.name),
+          !editing.has(view.info.id) &&
+            el("button", { className: "link small", textContent: t("balance.addKey"), onclick: () => edit(view.info.id, true) }),
+        ),
+        editing.has(view.info.id) && keyEditor(view),
+      ),
+    ),
+  ];
+  section.replaceChildren(...children.filter(Boolean));
+}
+
 function keyEditor(view) {
-  const id = view.providerId;
-  const input = el("input", { type: "password", placeholder: "sk-…", autocomplete: "off", spellcheck: false });
+  const id = view.info.id;
+  const input = el("input", {
+    type: "password",
+    placeholder: view.info.keyPlaceholder,
+    autocomplete: "off",
+    spellcheck: false,
+  });
   const message = el("p", { className: "error small" });
   const save = async () => {
     try {
       await invoke("save_api_key", { providerId: id, key: input.value });
       editing.delete(id);
+      expanded = id;
+      saveExpanded();
     } catch (error) {
       message.textContent = String(error);
     }
@@ -195,17 +411,17 @@ function keyEditor(view) {
 
   return el(
     "div",
-    {},
-    el(
-      "div",
-      { className: "row" },
-      input,
-      el("button", { className: "primary", textContent: t("balance.save"), onclick: save }),
-    ),
+    { className: "key-editor" },
+    el("div", { className: "row" }, input, el("button", { className: "primary", textContent: t("balance.save"), onclick: save })),
     el(
       "div",
       { className: "row" },
       el("button", { className: "link small", textContent: t("balance.cancel"), onclick: () => edit(id, false) }),
+      el("button", {
+        className: "link small",
+        textContent: t("provider.getKey"),
+        onclick: () => invoke("open_provider_page", { providerId: id, page: "keys" }),
+      }),
       view.hasKey &&
         el("button", {
           className: "link small error",
@@ -219,7 +435,7 @@ function keyEditor(view) {
 
 function edit(id, open) {
   open ? editing.add(id) : editing.delete(id);
-  renderBalances(lastBalances);
+  renderProviders(providers);
 }
 
 // Calendar
@@ -334,8 +550,11 @@ listen("snapshot", (e) => {
   renderSnapshot();
   loadCalendar();
 });
-listen("balances", (e) => renderBalances(e.payload));
-listen("settings", (e) => applySettings(e.payload));
+listen("providers", (e) => renderProviders(e.payload));
+listen("settings", (e) => {
+  settings = e.payload;
+  renderProviders(providers);
+});
 listen("panel-shown", () => {
   // Opening the panel goes back to today.
   calendarCursor = null;

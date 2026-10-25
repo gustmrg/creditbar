@@ -14,7 +14,7 @@ use creditbar_core::PricingSnapshot;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, RunEvent, State};
 
-use crate::balance::{BalanceView, Balances};
+use crate::balance::{Balances, ProviderView};
 use crate::holidays::Holidays;
 
 /// Everything the panel renders, fetched when it opens.
@@ -22,7 +22,7 @@ use crate::holidays::Holidays;
 #[serde(rename_all = "camelCase")]
 struct PanelState {
     snapshot: PricingSnapshot,
-    balances: Vec<BalanceView>,
+    providers: Vec<ProviderView>,
     settings: settings::Settings,
 }
 
@@ -34,7 +34,7 @@ fn get_state(
 ) -> PanelState {
     PanelState {
         snapshot: holidays.snapshot_now(),
-        balances: balances.views(),
+        providers: balances.views(),
         settings: tray.settings(),
     }
 }
@@ -73,6 +73,22 @@ async fn remove_api_key(app: AppHandle, provider_id: String) -> Result<(), Strin
     balance::remove_key(app, provider_id).await
 }
 
+/// Opens a provider's billing dashboard (`page = "dashboard"`) or API key page (`"keys"`).
+/// URLs come from the provider descriptor, never from the panel.
+#[tauri::command]
+fn open_provider_page(app: AppHandle, provider_id: String, page: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let provider = creditbar_core::providers::by_id(&provider_id).ok_or("unknown provider")?;
+    let url = match page.as_str() {
+        "dashboard" => provider.info().dashboard_url,
+        "keys" => provider.info().keys_url,
+        _ => return Err(format!("unknown page {page}")),
+    };
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn hide_panel(app: AppHandle) {
     panel::hide(&app);
@@ -98,6 +114,7 @@ fn main() {
     }
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -111,6 +128,7 @@ fn main() {
             save_api_key,
             remove_api_key,
             hide_panel,
+            open_provider_page,
             resize_panel,
             quit
         ])

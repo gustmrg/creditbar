@@ -2,8 +2,8 @@
 //!
 //! - [`pricing`]: DeepSeek's peak / off-peak schedule (always evaluated in Beijing time).
 //! - [`holidays`]: the mainland China holiday calendar that makes whole days off-peak.
-//! - [`providers`]: account balance providers behind a common [`providers::BalanceProvider`] trait.
-//! - [`http`]: performs a provider's balance request (feature `http`).
+//! - [`providers`]: credit providers, each turning an API key into a common [`ProviderSnapshot`].
+//! - [`http`]: the reqwest-backed HTTP client providers use (feature `http`).
 //!
 //! Nothing here touches UI, storage or platform APIs; the app shells (tray, panel, keyring)
 //! live in other crates and call into this one.
@@ -16,4 +16,4 @@ pub mod providers;
 
 pub use holidays::HolidaySchedule;
 pub use pricing::{PricePeriod, PricingSnapshot};
-pub use providers::{Balance, BalanceError, BalanceProvider};
+pub use providers::{FetchError, Provider, ProviderSnapshot};

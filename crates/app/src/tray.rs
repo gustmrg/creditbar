@@ -236,7 +236,7 @@ fn update(app: &AppHandle) {
         return;
     }
     let previous = last.take();
-    let changed = |f: &dyn Fn(&Shown) -> bool| previous.as_ref().map_or(true, f);
+    let changed = |f: &dyn Fn(&Shown) -> bool| previous.as_ref().is_none_or(f);
 
     if changed(&|l| l.attention != shown.attention) {
         let _ = tray.icon.set_icon(Some(icon(shown.attention)));

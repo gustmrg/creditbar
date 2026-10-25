@@ -1,13 +1,23 @@
-//! DeepSeek: `GET /user/balance` with `Authorization: Bearer <key>`.
-//! The query itself costs nothing.
+//! DeepSeek: `GET /user/balance` with the API key. The query itself costs nothing.
 
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 use super::{
-    check_status, Amount, AmountKind, Balance, BalanceError, BalanceProvider, BalanceRequest,
+    decode, get_ok, AccountBalance, BalancePart, BoxFuture, FetchError, HttpClient, Money, Note,
+    Provider, ProviderInfo, ProviderSnapshot,
 };
 
 pub const ENDPOINT: &str = "https://api.deepseek.com/user/balance";
+
+static INFO: ProviderInfo = ProviderInfo {
+    id: "deepseek",
+    name: "DeepSeek",
+    dashboard_url: "https://platform.deepseek.com/usage",
+    keys_url: "https://platform.deepseek.com/api_keys",
+    key_placeholder: "sk-…",
+    color: "#4D6BFE",
+};
 
 pub struct DeepSeek;
 
@@ -25,102 +35,120 @@ struct BalanceInfo {
     topped_up_balance: String,
 }
 
-impl BalanceProvider for DeepSeek {
-    fn id(&self) -> &'static str {
-        "deepseek"
+impl Provider for DeepSeek {
+    fn info(&self) -> &'static ProviderInfo {
+        &INFO
     }
 
-    fn display_name(&self) -> &'static str {
-        "DeepSeek"
+    fn fetch<'a>(
+        &'a self,
+        http: &'a dyn HttpClient,
+        api_key: &'a str,
+        _now: DateTime<Utc>,
+    ) -> BoxFuture<'a, Result<ProviderSnapshot, FetchError>> {
+        Box::pin(async move { parse(&get_ok(http, ENDPOINT, api_key).await?) })
     }
+}
 
-    fn balance_request(&self, api_key: &str) -> BalanceRequest {
-        BalanceRequest {
-            url: ENDPOINT.to_owned(),
-            headers: vec![
-                ("Authorization", format!("Bearer {api_key}")),
-                ("Accept", "application/json".to_owned()),
-            ],
-        }
-    }
-
-    fn parse_balance(&self, status: u16, body: &[u8]) -> Result<Balance, BalanceError> {
-        check_status(status)?;
-        let response: Response =
-            serde_json::from_slice(body).map_err(|_| BalanceError::Decoding)?;
-        Ok(Balance {
-            is_available: response.is_available,
-            amounts: response
-                .balance_infos
-                .into_iter()
-                .map(|info| Amount {
-                    currency: info.currency,
-                    kind: AmountKind::AccountBalance,
-                    total: info.total_balance,
-                    granted: Some(info.granted_balance),
-                    topped_up: Some(info.topped_up_balance),
-                })
-                .collect(),
+fn parse(body: &[u8]) -> Result<ProviderSnapshot, FetchError> {
+    let response: Response = decode(body)?;
+    let mut balances: Vec<AccountBalance> = response
+        .balance_infos
+        .into_iter()
+        .map(|info| {
+            let money = |amount: String| Money {
+                currency: info.currency.clone(),
+                amount,
+            };
+            AccountBalance {
+                parts: vec![
+                    (BalancePart::Paid, money(info.topped_up_balance)),
+                    (BalancePart::Promo, money(info.granted_balance)),
+                ],
+                total: money(info.total_balance),
+            }
         })
-    }
+        .collect();
+    // An account can hold CNY and USD; show USD first.
+    balances.sort_by_key(|b| b.total.currency != "USD");
+
+    Ok(ProviderSnapshot {
+        balances,
+        can_make_calls: response.is_available,
+        windows: Vec::new(),
+        details: Vec::new(),
+        notes: if response.is_available {
+            Vec::new()
+        } else {
+            vec![Note::CannotMakeCalls]
+        },
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::testing::{block_on, FakeHttp};
 
-    const SAMPLE: &str = r#"{
-        "is_available": true,
-        "balance_infos": [{
-            "currency": "CNY",
-            "total_balance": "110.00",
-            "granted_balance": "10.00",
-            "topped_up_balance": "100.00"
-        }]
-    }"#;
-
-    #[test]
-    fn request_sends_bearer_key() {
-        let request = DeepSeek.balance_request("sk-test");
-        assert_eq!(request.url, ENDPOINT);
-        assert!(request
-            .headers
-            .contains(&("Authorization", "Bearer sk-test".to_owned())));
+    fn fetch(http: FakeHttp) -> Result<ProviderSnapshot, FetchError> {
+        block_on(DeepSeek.fetch(&http, "sk-test", Utc::now()))
     }
 
     #[test]
-    fn parses_balance() {
-        let balance = DeepSeek.parse_balance(200, SAMPLE.as_bytes()).unwrap();
-        assert!(balance.is_available);
+    fn parses_balance_with_paid_and_promo_parts() {
+        let body = r#"{"is_available":true,"balance_infos":[{"currency":"CNY","total_balance":"110.00","granted_balance":"10.00","topped_up_balance":"100.00"}]}"#;
+        let snapshot = fetch(FakeHttp::default().with(ENDPOINT, 200, body)).unwrap();
+        assert!(snapshot.can_make_calls);
+        assert!(snapshot.notes.is_empty());
+        let balance = &snapshot.balances[0];
         assert_eq!(
-            balance.amounts,
-            vec![Amount {
+            balance.total,
+            Money {
                 currency: "CNY".into(),
-                kind: AmountKind::AccountBalance,
-                total: "110.00".into(),
-                granted: Some("10.00".into()),
-                topped_up: Some("100.00".into()),
-            }]
+                amount: "110.00".into()
+            }
         );
+        assert_eq!(
+            balance.parts[0],
+            (
+                BalancePart::Paid,
+                Money {
+                    currency: "CNY".into(),
+                    amount: "100.00".into()
+                }
+            )
+        );
+        assert_eq!(balance.parts[1].0, BalancePart::Promo);
+    }
+
+    #[test]
+    fn usd_comes_first_and_unavailable_is_noted() {
+        let body = r#"{"is_available":false,"balance_infos":[
+            {"currency":"CNY","total_balance":"0","granted_balance":"0","topped_up_balance":"0"},
+            {"currency":"USD","total_balance":"0","granted_balance":"0","topped_up_balance":"0"}]}"#;
+        let snapshot = fetch(FakeHttp::default().with(ENDPOINT, 200, body)).unwrap();
+        assert_eq!(snapshot.balances[0].total.currency, "USD");
+        assert!(!snapshot.can_make_calls);
+        assert_eq!(snapshot.notes, vec![Note::CannotMakeCalls]);
     }
 
     #[test]
     fn maps_errors() {
         assert_eq!(
-            DeepSeek.parse_balance(401, b""),
-            Err(BalanceError::Unauthorized)
+            fetch(FakeHttp::default().with(ENDPOINT, 401, "")),
+            Err(FetchError::Unauthorized)
         );
         assert_eq!(
-            DeepSeek.parse_balance(403, b""),
-            Err(BalanceError::Unauthorized)
+            fetch(FakeHttp::default().with(ENDPOINT, 500, "")),
+            Err(FetchError::Http { status: 500 })
         );
         assert_eq!(
-            DeepSeek.parse_balance(500, b""),
-            Err(BalanceError::Http { status: 500 })
+            fetch(FakeHttp::default().with(ENDPOINT, 200, "<html>")),
+            Err(FetchError::Decoding)
         );
-        assert_eq!(
-            DeepSeek.parse_balance(200, b"<html>"),
-            Err(BalanceError::Decoding)
-        );
+        assert!(matches!(
+            fetch(FakeHttp::default().failing(ENDPOINT)),
+            Err(FetchError::Network(_))
+        ));
     }
 }
