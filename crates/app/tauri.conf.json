@@ -28,6 +28,22 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.png"]
+    "category": "Utility",
+    "shortDescription": "DeepSeek peak / off-peak pricing and API balances in your tray",
+    "longDescription": "Shows whether DeepSeek is in peak or off-peak pricing, counts down to the next switch, and shows the API balance of DeepSeek, Kimi and OpenRouter accounts.",
+    "copyright": "© 2026 Zhao Xin, Gustavo Miranda. MIT License.",
+    "license": "MIT",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
   }
 }

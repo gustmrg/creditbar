@@ -46,6 +46,20 @@ cargo run -p status-core --example status
 DEEPSEEK_API_KEY=sk-... cargo run -p status-core --example status
 ```
 
+## Installers
+
+```bash
+cargo install tauri-cli --version "^2" --locked   # once
+cd crates/app
+cargo tauri build --bundles deb,appimage          # Linux
+cargo tauri build --bundles dmg                   # macOS (on a Mac)
+cargo tauri build --bundles nsis                  # Windows (on Windows)
+```
+
+Output lands in `target/release/bundle/`. The `.deb` (≈5 MB) depends on the system WebKitGTK and
+AppIndicator; the AppImage (≈110 MB) carries them. Builds are unsigned: macOS needs
+right-click → Open the first time, and Windows SmartScreen asks once.
+
 ## Languages
 
 English (en-US) and Brazilian Portuguese (pt-BR), picked from the system locale
