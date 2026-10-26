@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use creditbar_core::peak::PeakStatus;
 use creditbar_core::providers::{self, FetchError, Provider, ProviderInfo, ProviderSnapshot};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
@@ -28,6 +29,9 @@ pub struct ProviderView {
     pub error: Option<String>,
     pub suggests_replacing_key: bool,
     pub last_refreshed: Option<DateTime<Utc>>,
+    /// Where now falls in the provider's peak hours, if it has them. Computed per view, so the
+    /// panel reloads when `next_transition` passes.
+    pub peak: Option<PeakStatus>,
 }
 
 struct Slot {
@@ -57,6 +61,7 @@ impl Balances {
                     error: None,
                     suggests_replacing_key: false,
                     last_refreshed: None,
+                    peak: None,
                 };
                 Slot {
                     provider,
@@ -89,11 +94,15 @@ impl Balances {
     }
 
     pub fn views(&self) -> Vec<ProviderView> {
+        let now = Utc::now();
         self.slots
             .lock()
             .unwrap()
             .iter()
-            .map(|s| s.view.clone())
+            .map(|s| ProviderView {
+                peak: s.view.info.peak_hours.map(|hours| hours.status(now)),
+                ..s.view.clone()
+            })
             .collect()
     }
 

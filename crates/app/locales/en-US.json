@@ -80,5 +80,17 @@
   "note.balanceUnavailable": "Couldn’t load the account balance.",
   "balance.account": "Account balance",
   "settings.title": "Settings",
-  "settings.animateAquarium": "Animate the Aquarium"
+  "settings.animateAquarium": "Animate the Aquarium",
+  "window.fiveHour": "5-hour quota",
+  "window.planQuota": "Plan quota",
+  "window.toolCalls": "MCP tools",
+  "window.percentLeft": "{percent}% left",
+  "quantity.tokens": "{amount} tokens",
+  "quantity.credits": "{amount} credits",
+  "quantity.calls": "{amount} calls",
+  "note.zaiLegacyRates": "Legacy plan: GLM-5.3 counts 3× at peak and 1× off-peak; GLM-5.3-Flash 1.2× and 0.4×.",
+  "provider.plan": "{plan} plan",
+  "peak.title": "Peak hours",
+  "peak.rates": "Usage counts {peak}× at peak and {offPeak}× off-peak",
+  "peak.schedule": "Peak: Monday to Friday, {ranges} ({zone}). Weekends are off-peak all day."
 }

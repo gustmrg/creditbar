@@ -2,6 +2,7 @@
 //!
 //! - [`pricing`]: DeepSeek's peak / off-peak schedule (always evaluated in Beijing time).
 //! - [`holidays`]: the mainland China holiday calendar that makes whole days off-peak.
+//! - [`peak`]: plain weekday peak hours, for providers without a holiday calendar (Z.AI).
 //! - [`providers`]: credit providers, each turning an API key into a common [`ProviderSnapshot`].
 //! - [`http`]: the reqwest-backed HTTP client providers use (feature `http`).
 //!
@@ -11,6 +12,7 @@
 pub mod holidays;
 #[cfg(feature = "http")]
 pub mod http;
+pub mod peak;
 pub mod pricing;
 pub mod providers;
 

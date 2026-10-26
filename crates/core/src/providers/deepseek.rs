@@ -17,6 +17,7 @@ static INFO: ProviderInfo = ProviderInfo {
     keys_url: "https://platform.deepseek.com/api_keys",
     key_placeholder: "sk-…",
     color: "#4D6BFE",
+    peak_hours: None,
 };
 
 pub struct DeepSeek;
@@ -82,6 +83,7 @@ fn parse(body: &[u8]) -> Result<ProviderSnapshot, FetchError> {
         } else {
             vec![Note::CannotMakeCalls]
         },
+        ..ProviderSnapshot::default()
     })
 }
 

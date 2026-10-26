@@ -10,6 +10,7 @@
 pub mod deepseek;
 pub mod moonshot;
 pub mod openrouter;
+pub mod zai;
 
 use std::future::Future;
 use std::pin::Pin;
@@ -17,6 +18,8 @@ use std::pin::Pin;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use crate::peak::PeakHours;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
@@ -36,12 +39,15 @@ pub struct ProviderInfo {
     pub key_placeholder: &'static str,
     /// Accent colour for the provider's row, `#RRGGBB`.
     pub color: &'static str,
+    /// When usage costs more, for a provider with a plain weekly clock (DeepSeek's holiday-aware
+    /// schedule is shown on its own).
+    pub peak_hours: Option<&'static PeakHours>,
 }
 
 // MARK: - Snapshot
 
 /// Everything a provider reports, in a shape the UI renders generically.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderSnapshot {
     /// Money left on the account, one entry per currency, the preferred one first. Empty when
@@ -53,6 +59,18 @@ pub struct ProviderSnapshot {
     pub windows: Vec<UsageWindow>,
     pub details: Vec<Detail>,
     pub notes: Vec<Note>,
+    /// The subscription plan's name, for providers sold as plans (e.g. "Pro").
+    pub plan: Option<String>,
+    /// How much a request counts at peak and off-peak, for providers with [`PeakHours`].
+    pub peak_rates: Option<PeakRates>,
+}
+
+/// Multipliers applied to usage: e.g. 1.0 at peak and 0.5 off-peak.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeakRates {
+    pub peak: f64,
+    pub off_peak: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -90,13 +108,26 @@ pub enum BalancePart {
     Promo,
 }
 
-/// A spending allowance that resets, e.g. an OpenRouter key's monthly limit.
+/// What a window counts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "unit", content = "value")]
+pub enum Quantity {
+    Money(Money),
+    Tokens(u64),
+    Credits(u64),
+    /// Tool calls, e.g. Z.AI's MCP searches.
+    Calls(u64),
+}
+
+/// An allowance that resets, e.g. an OpenRouter key's monthly limit or a coding plan's 5-hour
+/// quota.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageWindow {
     pub kind: WindowKind,
-    pub used: Money,
-    pub limit: Money,
+    /// Absent when the provider only reports a percentage.
+    pub used: Option<Quantity>,
+    pub limit: Option<Quantity>,
     /// 0–100.
     pub used_percent: f64,
     pub reset: Option<ResetPeriod>,
@@ -108,6 +139,12 @@ pub struct UsageWindow {
 pub enum WindowKind {
     /// A spending cap set on the API key itself, independent of the account balance.
     KeyLimit,
+    /// A plan's rolling 5-hour allowance.
+    FiveHour,
+    /// A plan's allowance over a longer period (see `reset`).
+    PlanQuota,
+    /// A plan's allowance of tool calls (web search, vision…).
+    ToolCalls,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -148,6 +185,8 @@ pub enum Note {
     BalanceNeedsManagementKey,
     /// The account balance request failed while the rest succeeded.
     BalanceUnavailable,
+    /// A Z.AI plan from before July 30, 2026, whose peak rates depend on the model.
+    ZaiLegacyRates,
 }
 
 // MARK: - Fetching
@@ -235,6 +274,7 @@ pub fn all() -> Vec<Box<dyn Provider>> {
         Box::new(deepseek::DeepSeek),
         Box::new(moonshot::Moonshot),
         Box::new(openrouter::OpenRouter),
+        Box::new(zai::Zai),
     ]
 }
 

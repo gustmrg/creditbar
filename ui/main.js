@@ -145,8 +145,9 @@ function pricingBadge(seconds) {
 }
 
 function tick() {
-  if (!snapshot) return;
   const now = Date.now();
+  tickPeaks(now);
+  if (!snapshot) return;
   const next = Date.parse(snapshot.nextTransition);
   const start = Date.parse(snapshot.intervalStart);
   const seconds = Math.max(0, Math.floor((next - now) / 1000));
@@ -169,9 +170,26 @@ function formatMoney(money) {
   }
 }
 
+const formatCount = (count) => new Intl.NumberFormat(i18n.locale).format(count);
+
+/** Money, tokens, credits or calls. */
+function formatQuantity(quantity) {
+  if (quantity.unit === "money") return formatMoney(quantity.value);
+  return t(`quantity.${quantity.unit}`, { amount: formatCount(quantity.value) });
+}
+
+/** "$25.50 of $100.00", "224 of 1,000 calls": counts name their unit once. */
+const usedOf = (window) =>
+  t("window.usedOf", {
+    used: window.used.unit === "money" ? formatMoney(window.used.value) : formatCount(window.used.value),
+    limit: formatQuantity(window.limit),
+  });
+
+const isMoney = (window) => window.used?.unit === "money" && window.limit?.unit === "money";
+
 const remaining = (window) => ({
-  currency: window.limit.currency,
-  amount: String(Math.max(0, Number(window.limit.amount) - Number(window.used.amount))),
+  currency: window.limit.value.currency,
+  amount: String(Math.max(0, Number(window.limit.value.amount) - Number(window.used.value.amount))),
 });
 
 const showsPricing = (view) => view.info.id === DEEPSEEK && settings.showsDeepseekPricing;
@@ -213,7 +231,11 @@ function meter(percent) {
 function headline(snap) {
   if (!snap) return "—";
   if (snap.balances.length) return formatMoney(snap.balances[0].total);
-  if (snap.windows.length) return formatMoney(remaining(snap.windows[0]));
+  const [first] = snap.windows;
+  if (first) {
+    if (isMoney(first)) return formatMoney(remaining(first));
+    return t("window.percentLeft", { percent: Math.max(0, Math.round(100 - first.usedPercent)) });
+  }
   const spent = snap.details.find((d) => d.kind === "spentWithKey");
   return spent ? formatMoney(spent.value) : "—";
 }
@@ -307,7 +329,9 @@ function renderCard(view) {
         "div",
         { className: "window-head" },
         el("span", {}, windowTitle(window)),
-        el("span", { className: "muted" }, t("window.usedOf", { used: formatMoney(window.used), limit: formatMoney(window.limit) })),
+        window.used &&
+          window.limit &&
+          el("span", { className: "muted" }, usedOf(window)),
       ),
       meter(window.usedPercent),
       el("div", { className: "muted small" }, windowStatus(window)),
@@ -355,15 +379,95 @@ function renderCard(view) {
   return el(
     "div",
     { className: "provider-card" },
+    snap?.plan && el("div", { className: "label" }, t("provider.plan", { plan: snap.plan })),
     balances,
     windows,
     details,
     notes,
     view.error && el("p", { className: "error small" }, view.error),
     showsPricing(view) && el("div", { id: "pricing-slot" }),
+    view.peak && peakBlock(view),
     actions,
     keyAction,
   );
+}
+
+// Peak hours of providers with a plain weekly clock (Z.AI); DeepSeek's are the pricing section.
+
+/** "UTC+8", "UTC−3:30". */
+function zoneName(hours) {
+  const sign = hours < 0 ? "−" : "+";
+  const whole = Math.trunc(Math.abs(hours));
+  const minutes = Math.round((Math.abs(hours) - whole) * 60);
+  return `UTC${sign}${whole}${minutes ? `:${pad(minutes)}` : ""}`;
+}
+
+/** The time of `iso` on a clock `hours` ahead of UTC. */
+const zonedTime = (iso, hours) =>
+  new Date(Date.parse(iso) + hours * 3600000).toLocaleTimeString(i18n.locale, {
+    timeZone: "UTC",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+
+const minuteTime = (minutes) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+const multiplier = (value) => new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 1 }).format(value);
+
+function peakBlock(view) {
+  const id = view.info.id;
+  const { peak } = view;
+  const { utcOffsetHours, ranges } = view.info.peakHours;
+  const rates = view.snapshot?.peakRates;
+  const zone = zoneName(utcOffsetHours);
+  const next = t("panel.nextAt", {
+    period: periodName(peak.nextPeriod),
+    time: `${zonedTime(peak.nextTransition, utcOffsetHours)} ${zone}`,
+  });
+  const sameZone = new Date().getTimezoneOffset() === -utcOffsetHours * 60;
+  const spans = new Intl.ListFormat(i18n.locale, { type: "conjunction" }).format(
+    ranges.map((range) => `${minuteTime(range.start)}–${minuteTime(range.end)}`),
+  );
+  return el(
+    "div",
+    { className: `peak-hours ${peak.period}` },
+    el("div", { className: "label" }, t("peak.title")),
+    el(
+      "div",
+      { className: "hero" },
+      el(
+        "div",
+        { className: "hero-text" },
+        el("h2", {}, periodName(peak.period)),
+        rates &&
+          el("p", { className: "muted small" }, t("peak.rates", { peak: multiplier(rates.peak), offPeak: multiplier(rates.offPeak) })),
+      ),
+      rates && el("span", { className: "badge" }, `×${multiplier(peak.period === "peak" ? rates.peak : rates.offPeak)}`),
+    ),
+    el("div", { className: "countdown", id: `peak-countdown-${id}` }, "--:--:--"),
+    el(
+      "div",
+      { className: "muted" },
+      sameZone ? next : `${next} · ${t("panel.yourTime", { time: localTime(peak.nextTransition) })}`,
+    ),
+    el("div", { className: "progress" }, el("div", { id: `peak-progress-${id}` })),
+    el("p", { className: "muted small" }, t("peak.schedule", { ranges: spans, zone })),
+  );
+}
+
+/** Moves every peak countdown; reloads once one reaches its switch. */
+function tickPeaks(now) {
+  for (const view of providers) {
+    if (!view.peak) continue;
+    const next = Date.parse(view.peak.nextTransition);
+    const start = Date.parse(view.peak.intervalStart);
+    const seconds = Math.max(0, Math.floor((next - now) / 1000));
+    const countdown = $(`peak-countdown-${view.info.id}`);
+    if (countdown) countdown.textContent = clock(seconds);
+    const bar = $(`peak-progress-${view.info.id}`);
+    if (bar) bar.style.width = `${Math.min(100, Math.max(0, ((now - start) / (next - start)) * 100))}%`;
+    if (seconds === 0) reload();
+  }
 }
 
 function renderAddProviders(views, overviewEmpty) {

@@ -13,8 +13,8 @@ use serde::Deserialize;
 
 use super::{
     bearer_headers, decode, get_ok, AccountBalance, BoxFuture, Detail, DetailKind, FetchError,
-    HttpClient, Money, Note, Provider, ProviderInfo, ProviderSnapshot, ResetPeriod, UsageWindow,
-    WindowKind,
+    HttpClient, Money, Note, Provider, ProviderInfo, ProviderSnapshot, Quantity, ResetPeriod,
+    UsageWindow, WindowKind,
 };
 
 pub const KEY_ENDPOINT: &str = "https://openrouter.ai/api/v1/key";
@@ -27,6 +27,7 @@ static INFO: ProviderInfo = ProviderInfo {
     keys_url: "https://openrouter.ai/settings/keys",
     key_placeholder: "sk-or-v1-…",
     color: "#6467F2",
+    peak_hours: None,
 };
 
 pub struct OpenRouter;
@@ -122,8 +123,8 @@ fn snapshot(key: Key, credits: CreditsOutcome, now: DateTime<Utc>) -> ProviderSn
             let reset = key.limit_reset.as_deref().and_then(parse_reset);
             windows.push(UsageWindow {
                 kind: WindowKind::KeyLimit,
-                used: Money::usd(limit - remaining),
-                limit: Money::usd(limit),
+                used: Some(Quantity::Money(Money::usd(limit - remaining))),
+                limit: Some(Quantity::Money(Money::usd(limit))),
                 used_percent: (limit - remaining) / limit * 100.0,
                 reset,
                 resets_at: reset.map(|period| next_reset(period, now)),
@@ -159,6 +160,7 @@ fn snapshot(key: Key, credits: CreditsOutcome, now: DateTime<Utc>) -> ProviderSn
         windows,
         details,
         notes,
+        ..ProviderSnapshot::default()
     }
 }
 
@@ -217,8 +219,8 @@ mod tests {
 
         let window = &snapshot.windows[0];
         assert_eq!(window.kind, WindowKind::KeyLimit);
-        assert_eq!(window.used, Money::usd(25.5));
-        assert_eq!(window.limit, Money::usd(100.0));
+        assert_eq!(window.used, Some(Quantity::Money(Money::usd(25.5))));
+        assert_eq!(window.limit, Some(Quantity::Money(Money::usd(100.0))));
         assert!((window.used_percent - 25.5).abs() < 1e-9);
         assert_eq!(window.reset, Some(ResetPeriod::Monthly));
         assert_eq!(

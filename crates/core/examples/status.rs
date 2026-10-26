@@ -1,6 +1,6 @@
 //! Prints the current DeepSeek pricing snapshot as JSON, and each provider's snapshot for which
 //! an API key is set in the environment: `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`,
-//! `OPENROUTER_API_KEY`.
+//! `OPENROUTER_API_KEY`, `ZAI_API_KEY`.
 //!
 //!     cargo run -p creditbar-core --example status
 

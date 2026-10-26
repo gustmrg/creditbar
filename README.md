@@ -1,8 +1,8 @@
 # CreditBar
 
-A tray app for macOS, Linux and Windows that shows how much API credit is left across your LLM
-providers — DeepSeek, Kimi and OpenRouter so far — and, for DeepSeek, whether it's in peak or
-off-peak pricing.
+A tray app for macOS, Linux and Windows that shows how much API credit or plan quota is left
+across your LLM providers — DeepSeek, Kimi, OpenRouter and the Z.AI Coding Plan so far — and, for
+DeepSeek and Z.AI, whether it's peak or off-peak.
 
 CreditBar started as a cross-platform port of
 [DeepSeek Status](https://github.com/owenzhao/DeepSeekStatus) by Zhao Xin, the macOS menu bar app
@@ -17,7 +17,7 @@ Status: **early**. Core logic plus a Tauri 2 tray shell with the panel. Tested o
 crates/core/            # creditbar-core: pure logic, no UI
   src/pricing.rs        # peak / off-peak rule (Beijing time), transitions, snapshot
   src/holidays.rs       # Apple holiday ICS parser + bundled 2026 fallback
-  src/providers/        # Provider trait, ProviderSnapshot + DeepSeek, Kimi, OpenRouter
+  src/providers/        # Provider trait, ProviderSnapshot + DeepSeek, Kimi, OpenRouter, Z.AI
   src/http.rs           # HttpClient over reqwest (feature `http`, on by default)
   tests/schedule.rs     # cases ported from the Swift app's self-check
   examples/status.rs    # prints the current snapshot (and balance with DEEPSEEK_API_KEY)
@@ -103,6 +103,7 @@ serve both the tray menu and the panel; a test checks every table has every Engl
 | DeepSeek | `GET api.deepseek.com/user/balance` | Account balance (USD first, then CNY) split into paid and promo; DeepSeek pricing section |
 | Kimi (Moonshot) | `GET api.moonshot.ai/v1/users/me/balance` | Account balance in USD split into paid and voucher; what the account owes. International platform keys only; api.moonshot.cn keys are separate |
 | OpenRouter | `GET openrouter.ai/api/v1/key` and `/credits` | Account balance; the key's own spending limit as a meter with its reset; spend today, this week, this month and in total. `/credits` is documented as management-key only but answers regular keys; if it refuses, the card says so and shows the key's figures |
+| Z.AI Coding Plan | `GET api.z.ai/api/monitor/usage/quota/limit` | A plan, so no balance: the 5-hour and weekly quotas as meters with their resets, the monthly MCP tool calls, the plan's name, and peak hours (weekdays 14:00–18:00 UTC+8) with a countdown and the plan's rates: 1×/0.5× for credit plans, 3×/1× for GLM-5.3 on legacy plans. Global platform keys only; open.bigmodel.cn keys are separate |
 
 ## The panel
 
@@ -115,11 +116,14 @@ generic card, so adding a provider needs no UI code.
 - Providers without a key sit under **Add a provider**.
 - DeepSeek's pricing (period, countdown, calendar, weekly grid) lives inside the DeepSeek card;
   the DeepSeek row stays listed for it even without a key while **Show DeepSeek Peak Hours** is on.
+- Providers with plain weekday peak hours (`ProviderInfo::peak_hours`, e.g. Z.AI) get a peak block
+  in their card: period, rates, countdown and schedule. DeepSeek's holiday-aware schedule is
+  separate.
 
 ## Adding a provider
 
 1. Add `crates/core/src/providers/<name>.rs` implementing `Provider`: a static `ProviderInfo`
-   (id, name, dashboard and key URLs, colour) and `fetch`, which turns an API key into a
+   (id, name, dashboard and key URLs, colour, peak hours) and `fetch`, which turns an API key into a
    `ProviderSnapshot` through the given `HttpClient` (`get_ok` handles 200 / 401 / 403).
 2. Register it in `providers::all()`.
 3. Test `fetch` with `testing::FakeHttp` and captured responses; no network needed.

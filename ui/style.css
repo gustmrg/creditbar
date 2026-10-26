@@ -163,6 +163,8 @@ p { margin: 0; }
   font-variant-numeric: tabular-nums;
 }
 
+.window-head > :last-child { flex: none; white-space: nowrap; }
+
 .details {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -341,6 +343,20 @@ footer {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
+
+/* Peak hours of other providers (inside their card); the period picks the accent. */
+
+.peak-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.peak-hours.peak { --accent: var(--peak); }
+.peak-hours.offPeak { --accent: var(--off-peak); }
+.peak-hours .hero { margin-bottom: 4px; }
 
 .block {
   display: flex;

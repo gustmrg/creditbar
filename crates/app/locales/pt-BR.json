@@ -80,5 +80,17 @@
   "note.balanceUnavailable": "Não foi possível carregar o saldo da conta.",
   "balance.account": "Saldo da conta",
   "settings.title": "Preferências",
-  "settings.animateAquarium": "Animar o aquário"
+  "settings.animateAquarium": "Animar o aquário",
+  "window.fiveHour": "Cota de 5 horas",
+  "window.planQuota": "Cota do plano",
+  "window.toolCalls": "Ferramentas MCP",
+  "window.percentLeft": "{percent}% restante",
+  "quantity.tokens": "{amount} tokens",
+  "quantity.credits": "{amount} créditos",
+  "quantity.calls": "{amount} chamadas",
+  "note.zaiLegacyRates": "Plano legado: o GLM-5.3 conta 3× no pico e 1× fora do pico; o GLM-5.3-Flash, 1,2× e 0,4×.",
+  "provider.plan": "Plano {plan}",
+  "peak.title": "Horário de pico",
+  "peak.rates": "O uso conta {peak}× no pico e {offPeak}× fora do pico",
+  "peak.schedule": "Pico: segunda a sexta, {ranges} ({zone}). Fins de semana são fora de pico o dia todo."
 }

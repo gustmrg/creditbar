@@ -18,6 +18,7 @@ static INFO: ProviderInfo = ProviderInfo {
     keys_url: "https://platform.kimi.ai/console/api-keys",
     key_placeholder: "sk-…",
     color: "#7C7C8A",
+    peak_hours: None,
 };
 
 pub struct Moonshot;
@@ -83,6 +84,7 @@ fn parse(body: &[u8]) -> Result<ProviderSnapshot, FetchError> {
         windows: Vec::new(),
         details: Vec::new(),
         notes,
+        ..ProviderSnapshot::default()
     })
 }
 
