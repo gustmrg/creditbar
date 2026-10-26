@@ -92,5 +92,6 @@
   "provider.plan": "{plan} plan",
   "peak.title": "Peak hours",
   "peak.rates": "Usage counts {peak}× at peak and {offPeak}× off-peak",
-  "peak.schedule": "Peak: Monday to Friday, {ranges} ({zone}). Weekends are off-peak all day."
+  "peak.schedule": "Peak: Monday to Friday, {ranges} ({zone}). Weekends are off-peak all day.",
+  "note.noGoSubscription": "This key's account has no OpenCode Go subscription; Zen pay-as-you-go balance is only on the dashboard."
 }

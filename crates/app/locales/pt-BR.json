@@ -92,5 +92,6 @@
   "provider.plan": "Plano {plan}",
   "peak.title": "Horário de pico",
   "peak.rates": "O uso conta {peak}× no pico e {offPeak}× fora do pico",
-  "peak.schedule": "Pico: segunda a sexta, {ranges} ({zone}). Fins de semana são fora de pico o dia todo."
+  "peak.schedule": "Pico: segunda a sexta, {ranges} ({zone}). Fins de semana são fora de pico o dia todo.",
+  "note.noGoSubscription": "A conta desta chave não tem assinatura do OpenCode Go; o saldo pré-pago do Zen só aparece no painel do site."
 }

@@ -9,6 +9,7 @@
 
 pub mod deepseek;
 pub mod moonshot;
+pub mod opencodego;
 pub mod openrouter;
 pub mod zai;
 
@@ -188,6 +189,8 @@ pub enum Note {
     BalanceUnavailable,
     /// A Z.AI plan from before July 30, 2026, whose peak rates depend on the model.
     ZaiLegacyRates,
+    /// An OpenCode Zen key on an account without a Go subscription.
+    NoGoSubscription,
 }
 
 // MARK: - Fetching
@@ -275,6 +278,7 @@ pub fn all() -> Vec<Box<dyn Provider>> {
         Box::new(deepseek::DeepSeek),
         Box::new(moonshot::Moonshot),
         Box::new(openrouter::OpenRouter),
+        Box::new(opencodego::OpenCodeGo),
         Box::new(zai::Zai),
     ]
 }
