@@ -215,7 +215,7 @@ p { margin: 0; }
   align-items: center;
 }
 
-input {
+input:not([type="checkbox"]) {
   flex: 1;
   min-width: 0;
   padding: 6px 8px;
@@ -226,7 +226,7 @@ input {
   font: inherit;
 }
 
-input:focus { outline: 2px solid var(--brand); outline-offset: -1px; }
+input:not([type="checkbox"]):focus { outline: 2px solid var(--brand); outline-offset: -1px; }
 
 button {
   padding: 5px 10px;
@@ -272,7 +272,35 @@ footer {
   gap: 8px;
 }
 
-.settings input { flex: none; accent-color: var(--brand); }
+/* Drawn here, so every platform's WebView shows the same square box. */
+.settings input {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1.5px solid var(--muted);
+  border-radius: 4px;
+  background: var(--surface);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.settings input:checked { border-color: var(--brand); background: var(--brand); }
+
+.settings input:checked::after {
+  content: "";
+  width: 4px;
+  height: 8px;
+  margin-top: -2px;
+  border: solid var(--surface);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.settings input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.settings input:disabled { opacity: 0.5; }
 .settings label:has(input:disabled) { color: var(--muted); }
 
 .brand {
