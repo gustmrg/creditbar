@@ -28,7 +28,7 @@ let reloading = false;
 const editing = new Set();
 /** The provider whose card is open, or null. Remembered per viewer. */
 let expanded = loadExpanded();
-/** Calendar view and the Beijing date (`YYYY-MM-DD`) it is centred on. */
+/** Calendar view and the date (`YYYY-MM-DD`) it is centred on; null means today. */
 let calendarView = "month";
 let calendarCursor = null;
 
@@ -445,13 +445,17 @@ function edit(id, open) {
 
 /** Today's date in Beijing as `YYYY-MM-DD`. */
 const beijingToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: BEIJING }).format(new Date());
+/** Today's date where the user is, as `YYYY-MM-DD`. */
+const localToday = () => new Intl.DateTimeFormat("en-CA").format(new Date());
+/** The month shows the user's today; the week, in Beijing hours, shows Beijing's. */
+const calendarToday = () => (calendarView === "month" ? localToday() : beijingToday());
 
 /** Dates are handled as UTC midnights so the local time zone never shifts them. */
 const parseDay = (day) => new Date(`${day}T00:00:00Z`);
 const formatDay = (date) => date.toISOString().slice(0, 10);
 
 function moveCursor(step) {
-  const date = parseDay(calendarCursor);
+  const date = parseDay(calendarCursor ?? calendarToday());
   if (calendarView === "month") {
     date.setUTCDate(1);
     date.setUTCMonth(date.getUTCMonth() + step);
@@ -463,8 +467,8 @@ function moveCursor(step) {
 }
 
 async function loadCalendar() {
-  calendarCursor ??= beijingToday();
-  const date = parseDay(calendarCursor);
+  const cursor = calendarCursor ?? calendarToday();
+  const date = parseDay(cursor);
   $("legend-off").textContent = t(calendarView === "month" ? "legend.offAllDay" : "legend.off");
   $("legend-holiday").hidden = calendarView !== "month";
   if (calendarView === "month") {
@@ -472,7 +476,7 @@ async function loadCalendar() {
     $("cal-title").textContent = date.toLocaleDateString(i18n.locale, { month: "long", year: "numeric", timeZone: "UTC" });
     $("calendar").replaceChildren(renderMonth(days));
   } else {
-    const days = await invoke("week_grid", { date: calendarCursor });
+    const days = await invoke("week_grid", { date: cursor });
     const short = (day) => parseDay(day).toLocaleDateString(i18n.locale, { month: "short", day: "numeric", timeZone: "UTC" });
     $("cal-title").textContent = `${short(days[0].date)} – ${short(days[6].date)}`;
     $("calendar").replaceChildren(renderWeek(days));
@@ -491,7 +495,9 @@ function renderMonth(days) {
   const leading = (parseDay(days[0].date).getUTCDay() + 6) % 7;
   for (let i = 0; i < leading; i++) grid.append(el("div"));
 
-  const today = beijingToday();
+  // The month marks the user's own date: west of Beijing, Beijing's date runs a day ahead every
+  // evening. (The week grid stays in Beijing hours, so it marks Beijing's day and hour.)
+  const today = localToday();
   for (const day of days) {
     const type = day.info.kind.type;
     const classes = ["day"];
