@@ -600,11 +600,11 @@ const weekdayName = (day, style) =>
 
 function renderMonth(days) {
   const grid = el("div", { className: "month" });
-  // 2024-01-01 was a Monday.
+  // Weeks start on Sunday; 2024-01-07 was one.
   for (let i = 0; i < 7; i++) {
-    grid.append(el("div", { className: "head" }, weekdayName(`2024-01-0${i + 1}`, "narrow")));
+    grid.append(el("div", { className: "head" }, weekdayName(`2024-01-${pad(7 + i)}`, "narrow")));
   }
-  const leading = (parseDay(days[0].date).getUTCDay() + 6) % 7;
+  const leading = parseDay(days[0].date).getUTCDay();
   for (let i = 0; i < leading; i++) grid.append(el("div"));
 
   // The month marks the user's own date: west of Beijing, Beijing's date runs a day ahead every

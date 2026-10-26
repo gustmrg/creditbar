@@ -279,24 +279,25 @@ fn month_calendar_marks_off_peak_days() {
 }
 
 #[test]
-fn week_grid_runs_monday_to_sunday_by_hour() {
+fn week_grid_runs_sunday_to_saturday_by_hour() {
     let schedule = HolidaySchedule::bundled();
-    // Wednesday 2026-09-16 → week of Monday 2026-09-14.
+    // Wednesday 2026-09-16 → week of Sunday 2026-09-13.
     let week = pricing::week_days(day(2026, 9, 16), &schedule);
     assert_eq!(week.len(), 7);
-    assert_eq!(week[0].date, day(2026, 9, 14));
-    assert_eq!(week[6].date, day(2026, 9, 20));
+    assert_eq!(week[0].date, day(2026, 9, 13));
+    assert_eq!(week[6].date, day(2026, 9, 19));
 
-    let monday = &week[0].hours;
+    assert!(week[0].hours.iter().all(|&p| p == OffPeak), "Sunday");
+    let monday = &week[1].hours;
     let peak_hours: Vec<usize> = (0..24).filter(|&h| monday[h] == Peak).collect();
     assert_eq!(peak_hours, vec![9, 10, 11, 14, 15, 16, 17]);
-    assert!(week[5].hours.iter().all(|&p| p == OffPeak), "Saturday");
+    assert!(week[6].hours.iter().all(|&p| p == OffPeak), "Saturday");
 
-    // National Day week: holidays Mon–Wed, regular Thu–Fri, make-up workday Saturday.
+    // National Day week: holidays Sun–Wed, regular Thu–Fri, make-up workday Saturday.
     let golden = pricing::week_days(day(2026, 10, 5), &schedule);
     let has_peak: Vec<bool> = golden.iter().map(|d| d.hours.contains(&Peak)).collect();
     assert_eq!(
         has_peak,
-        vec![false, false, false, true, true, false, false]
+        vec![false, false, false, false, true, true, false]
     );
 }

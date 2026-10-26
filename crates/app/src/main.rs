@@ -73,7 +73,7 @@ fn month_calendar(holidays: State<'_, Holidays>, year: i32, month: u32) -> Vec<C
     holidays.with_schedule(|schedule| pricing::month_days(year, month, schedule))
 }
 
-/// Monday to Sunday of the week containing `date` (`YYYY-MM-DD`), or of today in Beijing.
+/// Sunday to Saturday of the week containing `date` (`YYYY-MM-DD`), or of today in Beijing.
 #[tauri::command]
 fn week_grid(holidays: State<'_, Holidays>, date: Option<NaiveDate>) -> Vec<CalendarDay> {
     let date = date.unwrap_or_else(|| pricing::beijing_date(Utc::now()));

@@ -144,10 +144,10 @@ pub fn month_days(year: i32, month: u32, schedule: &HolidaySchedule) -> Vec<Cale
         .collect()
 }
 
-/// Monday to Sunday of the week containing `date` (for the weekly grid).
+/// Sunday to Saturday of the week containing `date` (for the weekly grid).
 pub fn week_days(date: NaiveDate, schedule: &HolidaySchedule) -> Vec<CalendarDay> {
-    let monday = date.week(Weekday::Mon).first_day();
-    monday
+    let sunday = date.week(Weekday::Sun).first_day();
+    sunday
         .iter_days()
         .take(7)
         .map(|day| calendar_day(day, schedule))
