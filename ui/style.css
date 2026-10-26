@@ -89,14 +89,36 @@ p { margin: 0; }
 .provider-row:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
 .provider-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 
-.marker {
+/* Logos are single-colour SVGs used as masks: painted in the brand's colour when it has one,
+   otherwise in the text colour, black in light mode and white in dark. */
+.provider-icon {
+  position: relative;
   flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
 }
 
-.marker.attention { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--warn); }
+.provider-icon .logo {
+  width: 100%;
+  height: 100%;
+  background: var(--text);
+  -webkit-mask: var(--logo) center / contain no-repeat;
+  mask: var(--logo) center / contain no-repeat;
+}
+
+.provider-icon.attention::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--warn);
+}
 
 .row-text {
   flex: 1;
@@ -147,7 +169,8 @@ p { margin: 0; }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 2px 12px 12px 30px;
+  /* Lines up with the name, past the 18px icon. */
+  padding: 2px 12px 12px 40px;
 }
 
 .amount {
@@ -204,8 +227,10 @@ p { margin: 0; }
 .add-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
 }
+
+.add-head .row-name { flex: 1; }
 
 /* Key editor and controls */
 

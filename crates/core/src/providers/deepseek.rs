@@ -16,7 +16,7 @@ static INFO: ProviderInfo = ProviderInfo {
     dashboard_url: "https://platform.deepseek.com/usage",
     keys_url: "https://platform.deepseek.com/api_keys",
     key_placeholder: "sk-…",
-    color: "#4D6BFE",
+    logo_color: Some("#4D6BFE"),
     peak_hours: None,
 };
 

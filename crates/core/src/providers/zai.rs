@@ -35,7 +35,7 @@ static INFO: ProviderInfo = ProviderInfo {
     dashboard_url: "https://z.ai/manage-apikey/coding-plan/personal/my-plan",
     keys_url: "https://z.ai/manage-apikey/apikey-list",
     key_placeholder: "API key",
-    color: "#14B8A6",
+    logo_color: None,
     peak_hours: Some(&PEAK_HOURS),
 };
 

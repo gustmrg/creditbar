@@ -26,7 +26,7 @@ static INFO: ProviderInfo = ProviderInfo {
     dashboard_url: "https://openrouter.ai/settings/credits",
     keys_url: "https://openrouter.ai/settings/keys",
     key_placeholder: "sk-or-v1-…",
-    color: "#6467F2",
+    logo_color: None,
     peak_hours: None,
 };
 

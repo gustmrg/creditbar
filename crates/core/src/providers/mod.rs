@@ -37,8 +37,9 @@ pub struct ProviderInfo {
     /// Where the user creates an API key.
     pub keys_url: &'static str,
     pub key_placeholder: &'static str,
-    /// Accent colour for the provider's row, `#RRGGBB`.
-    pub color: &'static str,
+    /// The logo's own colour, `#RRGGBB`, for brands with one; black-and-white logos (`None`)
+    /// follow the text colour, so they stay visible in light and dark themes.
+    pub logo_color: Option<&'static str>,
     /// When usage costs more, for a provider with a plain weekly clock (DeepSeek's holiday-aware
     /// schedule is shown on its own).
     pub peak_hours: Option<&'static PeakHours>,

@@ -111,8 +111,10 @@ Modelled on [CodexBar](https://github.com/steipete/CodexBar): every provider ret
 `ProviderSnapshot` (balances, quota windows, details, notes), and the panel renders it with one
 generic card, so adding a provider needs no UI code.
 
-- One row per provider with a key: name, headline figure, a one-line summary and the quota
-  meter. Clicking a row opens its card; the choice is remembered.
+- One row per provider with a key: logo, name, headline figure, a one-line summary and the quota
+  meter. Logos are single-colour SVGs in `ui/icons/<id>.svg`, taken from CodexBar's
+  `ProviderIcon-*.svg` (MIT), in the brand's colour (`ProviderInfo::logo_color`) or, for
+  black-and-white logos, the text colour; the marks belong to their owners. Clicking a row opens its card; the choice is remembered.
 - Providers without a key sit under **Add a provider**.
 - DeepSeek's pricing (period, countdown, calendar, weekly grid) lives inside the DeepSeek card;
   the DeepSeek row stays listed for it even without a key while **Show DeepSeek Peak Hours** is on.
@@ -123,9 +125,9 @@ generic card, so adding a provider needs no UI code.
 ## Adding a provider
 
 1. Add `crates/core/src/providers/<name>.rs` implementing `Provider`: a static `ProviderInfo`
-   (id, name, dashboard and key URLs, colour, peak hours) and `fetch`, which turns an API key into a
+   (id, name, dashboard and key URLs, logo colour, peak hours) and `fetch`, which turns an API key into a
    `ProviderSnapshot` through the given `HttpClient` (`get_ok` handles 200 / 401 / 403).
-2. Register it in `providers::all()`.
+2. Register it in `providers::all()`, and add its single-colour logo as `ui/icons/<id>.svg`.
 3. Test `fetch` with `testing::FakeHttp` and captured responses; no network needed.
 4. If the snapshot uses a new kind (`BalancePart`, `WindowKind`, `DetailKind`, `Note`), add its
    string to both tables in `crates/app/locales/`.

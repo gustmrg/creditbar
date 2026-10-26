@@ -17,7 +17,7 @@ static INFO: ProviderInfo = ProviderInfo {
     dashboard_url: "https://platform.kimi.ai/console/account",
     keys_url: "https://platform.kimi.ai/console/api-keys",
     key_placeholder: "sk-…",
-    color: "#7C7C8A",
+    logo_color: None,
     peak_hours: None,
 };
 

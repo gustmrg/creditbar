@@ -275,11 +275,18 @@ function renderProviders(views) {
   Aquarium.wake();
 }
 
+/** The provider's logo (`ui/icons/<id>.svg`, from CodexBar) in the brand's colour, or the text
+ * colour for black-and-white logos; an amber dot when it needs attention. */
+function providerIcon(info, attention = false) {
+  const logo = el("i", { className: "logo" });
+  if (info.logoColor) logo.style.background = info.logoColor;
+  logo.style.setProperty("--logo", `url("icons/${info.id}.svg")`);
+  return el("span", { className: `provider-icon${attention ? " attention" : ""}`, ariaHidden: "true" }, logo);
+}
+
 function renderRow(view) {
   const id = view.info.id;
   const open = expanded === id;
-  const marker = el("span", { className: `marker${needsAttention(view) ? " attention" : ""}` });
-  marker.style.background = view.info.color;
   const firstWindow = view.snapshot?.windows[0];
 
   const head = el(
@@ -293,7 +300,7 @@ function renderRow(view) {
         renderProviders(providers);
       },
     },
-    marker,
+    providerIcon(view.info, needsAttention(view)),
     el(
       "span",
       { className: "row-text" },
@@ -483,6 +490,7 @@ function renderAddProviders(views, overviewEmpty) {
         el(
           "div",
           { className: "add-head" },
+          providerIcon(view.info),
           el("span", { className: "row-name" }, view.info.name),
           !editing.has(view.info.id) &&
             el("button", { className: "link small", textContent: t("balance.addKey"), onclick: () => edit(view.info.id, true) }),
