@@ -576,6 +576,8 @@ function renderSettings() {
   $("setting-countdown").checked = settings.showsCountdown;
   $("setting-countdown").disabled = !settings.showsDeepseekPricing;
   $("setting-login").checked = settings.launchAtLogin;
+  $("setting-aquarium").checked = settings.animatesAquarium;
+  Aquarium.setAnimated(settings.animatesAquarium);
 }
 
 $("settings-toggle").addEventListener("click", () => {
@@ -587,6 +589,9 @@ $("setting-pricing").addEventListener("change", (e) =>
   invoke("update_settings", { showsDeepseekPricing: e.target.checked }),
 );
 $("setting-countdown").addEventListener("change", (e) => invoke("update_settings", { showsCountdown: e.target.checked }));
+$("setting-aquarium").addEventListener("change", (e) =>
+  invoke("update_settings", { animatesAquarium: e.target.checked }),
+);
 $("setting-login").addEventListener("change", (e) =>
   invoke("set_launch_at_login", { enabled: e.target.checked }).catch((error) => {
     console.error("couldn't change launch at login", error);

@@ -16,11 +16,12 @@
     <!-- Providers without a key. -->
     <section class="add" id="add-providers"></section>
 
-    <!-- The same preferences as the tray menu, which is hidden when the GNOME Shell extension
-         stands in for the tray icon. -->
+    <!-- The tray menu's preferences, which the panel also needs because the GNOME Shell
+         extension hides the tray icon, plus the panel's own. -->
     <section class="settings" id="settings" hidden>
       <label><input type="checkbox" id="setting-pricing"> <span data-i18n="tray.deepseekPricing"></span></label>
       <label><input type="checkbox" id="setting-countdown"> <span data-i18n="tray.countdown"></span></label>
+      <label><input type="checkbox" id="setting-aquarium"> <span data-i18n="settings.animateAquarium"></span></label>
       <label><input type="checkbox" id="setting-login"> <span data-i18n="tray.autostart"></span></label>
     </section>
 

@@ -47,6 +47,7 @@ fn update_settings(
     app: AppHandle,
     shows_deepseek_pricing: Option<bool>,
     shows_countdown: Option<bool>,
+    animates_aquarium: Option<bool>,
 ) {
     tray::change_settings(&app, |settings| {
         if let Some(value) = shows_deepseek_pricing {
@@ -54,6 +55,9 @@ fn update_settings(
         }
         if let Some(value) = shows_countdown {
             settings.shows_countdown = value;
+        }
+        if let Some(value) = animates_aquarium {
+            settings.animates_aquarium = value;
         }
     });
 }

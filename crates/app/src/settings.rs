@@ -17,6 +17,9 @@ pub struct Settings {
     /// `HH:MM:SS` to the next DeepSeek switch next to the tray icon (macOS and Linux; Windows
     /// trays have no title). Only while the pricing section is shown.
     pub shows_countdown: bool,
+    /// The whale swims (peak) or breathes (off-peak) in the pricing section's aquarium; off, it
+    /// is drawn still.
+    pub animates_aquarium: bool,
 }
 
 impl Default for Settings {
@@ -24,6 +27,7 @@ impl Default for Settings {
         Settings {
             shows_deepseek_pricing: true,
             shows_countdown: false,
+            animates_aquarium: true,
         }
     }
 }
